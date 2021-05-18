@@ -88,7 +88,6 @@ def check_validity(parameters):
             return False
     return True
 
-
 class AdaptGA(object):
     def __init__(self, eliminate_ratio, pool_size, step_size):
         self._max_size = pool_size
@@ -96,9 +95,11 @@ class AdaptGA(object):
         self._grad_size = self._kept_size // 2
 
         self._step_size_min = 5.0e-5
+        self._init_step_size = deepcopy(step_size)
         self._step_size = step_size
         self._backup_step_size = None
         self._Z_factor = 0
+        self._past_deadlock_time = 0
         for i in range(self._grad_size):
             self._Z_factor += 1.0 / (i + 1)
 
@@ -116,17 +117,6 @@ class AdaptGA(object):
             if(random.random() < ratio - count):
                 yield True
             count += 1
-
-    def update_step_size(self):
-        print("top_k", self._top_k_increase, "backup", self._backup_step_size, "cont top 1", self._cont_new_top_1)
-        if(numpy.sum(self._top_k_increase) > 2 and self._backup_step_size is None and self._cont_new_top_1 > 1):
-            self.release_step_size()
-        elif(self._backup_step_size is not None and self._cont_new_top_1 > 0):
-            self.accept_step_size()
-        elif(self._backup_step_size is not None and self._cont_new_top_1 <= 0):
-            self.restore_step_size()
-        elif(numpy.sum(self._top_k_increase) < 2 and self._cont_new_top_1 <= 0):
-            self.shrink_step_size()
 
     def mutation(self, weights, grad, p_n=0.8, p_g=0.1):
         p = random.random()
@@ -148,6 +138,24 @@ class AdaptGA(object):
 
         return ret_w, step_size
 
+    def deadlock_mutation(self, weights, step_size):
+        p = random.random()
+        fin_noises = noise_like(weights, step_size)
+        ret_w = add_params(weights, fin_noises)
+        return ret_w
+
+    def reset_pool_from_deadlock(self, seed_idxes):
+        ori_len = len(self._evolution_pool)
+        i = 0
+        for idx in seed_idxes:
+            for _ in self.over_sampler(i, self._max_size):
+                params = self.deadlock_mutation(self._evolution_pool[idx][0], self._init_step_size)
+                if(check_validity(params)):
+                    self._evolution_pool.append([params, 0, 0.0, deepcopy(self._init_step_size), True])
+            i += 1
+        self._past_deadlock_time = 0
+        del self._evolution_pool[:ori_len]
+
     def evolve(self, verbose=False):
         start_time = time.time()
         #remove nan
@@ -163,6 +171,18 @@ class AdaptGA(object):
 
         committee_top = sorted_idx[:self._grad_size]
         committee_bot = sorted_idx[self._grad_size:(2 * self._grad_size)]
+        # if deadlock, try reboot
+        if(self._past_deadlock_time > 5 or random.random() < 0.01):
+            need_reset = True
+            for key in self._step_size:
+                if(self._step_size[key] > 2.0 * self._step_size_min):
+                    need_reset = False
+                    break
+            if(need_reset):
+                self.reset_pool_from_deadlock(committee_top)
+                if(verbose):
+                    print("...evolution pool reseted...")
+                return
 
         newly_top_comm = 0
         for top_idx in committee_top:
@@ -177,12 +197,16 @@ class AdaptGA(object):
 
         if(len(self._evolution_pool[top_idx]) > 3 and self._evolution_pool[top_idx][4]):
             #Learn from newly appeared best step size
+            self._past_deadlock_time = 0
             for key in self._step_size:
                 self._step_size[key] = 0.80 * self._step_size[key] + 0.20 * self._evolution_pool[top_idx][3][key]
                 self._step_size[key] = max(self._step_size_min, self._step_size[key])
+        else:
+            self._past_deadlock_time += 1
+
         if(newly_top_comm < 0.4):
             for key in self._step_size:
-                self._step_size[key] = max(self._step_size_min, 0.95 * self._step_size[key])
+                self._step_size[key] = max(self._step_size_min, 0.50 * self._step_size[key])
 
         for top_idx, bot_idx in zip(committee_top, committee_bot):
             #stat src
