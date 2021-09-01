@@ -13,8 +13,9 @@ python run_ga.py config_SeqPred_task
 python run_ga.py config_WRNav_task
 ```
 
-If you are to use parallelization mode, start on your remote server by using: 
+If you are to use parallelization mode, start xparl master on your remote server by using: 
 ```bash
 xparl start --cpu_num $cpu_num --port $port_id
 ```
+and change the "server" configuration to "$IP_ADDRESS:$port_id"
 Be sure that "$cpu_num" surpass the "actor_number" in the configuration file
