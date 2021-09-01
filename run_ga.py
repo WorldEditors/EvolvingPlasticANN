@@ -39,9 +39,6 @@ class Evaluator(object):
                 elif(self._adapt_type == "pg"):
                     #policy gradient
                     weighted_score, score_rollouts, step_rollouts = get_adaption_score_pg(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "heb"):
-                    #hebb's rule
-                    weighted_score, score_rollouts, step_rollouts = get_adaption_score_heb(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
                 elif(self._adapt_type == "recursive"):
                     #recursion
                     weighted_score, score_rollouts, step_rollouts = get_adaption_score_rec(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
