@@ -4,6 +4,7 @@ This is the meta-training code for paper "Do What Nature Did To Us: Evolving Pla
 # Requirement
 python >= 3.7.4
 parl == 1.4.1
+numpy
 
 # Run Meta-Training
 ```bash
@@ -17,5 +18,5 @@ If you are to use parallelization mode, start xparl master on your remote server
 ```bash
 xparl start --cpu_num $cpu_num --port $port_id
 ```
-and change the "server" configuration to "$IP_ADDRESS:$port_id"
-Be sure that "$cpu_num" surpass the "actor_number" in the configuration file
+and change the "server" configuration to "$IP_ADDRESS:$port_id".
+Also be sure that "$cpu_num" surpass the "actor_number" in the configuration file
