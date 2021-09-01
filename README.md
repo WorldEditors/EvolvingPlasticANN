@@ -2,8 +2,8 @@
 This is the meta-training code for paper "Do What Nature Did To Us: Evolving Plastic Recurrent Neural Networks For Task Generalization"
 
 # Requirement
-python >= 3.7.4
-parl == 1.4.1
+python >= 3.7.4\\
+parl == 1.4.1\\
 numpy
 
 # Run Meta-Training
