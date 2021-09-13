@@ -4,6 +4,7 @@
 import os
 import math
 from env_sequence_predicting import SequencePredicting
+from layers import *
 
 root = "./results/"
 directory = root + "/workspace_SeqPred/"
@@ -11,57 +12,94 @@ ent_factor = 1.0e-6
 K = 10
 N = 20
 l = 3
-input_neurons = l
 
 # Model Structure for EPRNN
 model_structures = {
-        "FC_1": ("fc", ["input"], 64, "relu", 1.0, 1.0e-2, None), 
-        "Heb_A": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-        "Heb_B": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-        "Heb_C": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-        "Heb_D": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-        "RNN_Mod": ("fc", ["FC_1", "RNN_1"], 64, "sigmoid", 1.0, 1.0e-2, None), 
-        "RNN_1": ("rnn", ["FC_1"], 64, "tanh", 1.0, 1.0e-2, 
-            {"type": "SABCD",
-                "S": "RNN_Mod",
-                "A": "Heb_A",
-                "B": "Heb_B",
-                "C": "Heb_C",
-                "D": "Heb_D",
-                }),
-        "FC_2": ("fc", ["RNN_1"], 64, "sigmoid", 1.0, 1.0e-2, None),
-        "output": ("fc", ["FC_2"], l, "none", 1.0, 1.0e-2, None)
+        "observation": Input(l),
+        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
+        "heb_a": TensorEmb((64,64), param_name="heb_a", evolution_noise_scale=1.0e-3),
+        "heb_b": TensorEmb((64,64), param_name="heb_b", evolution_noise_scale=1.0e-3),
+        "heb_c": TensorEmb((64,64), param_name="heb_c", evolution_noise_scale=1.0e-3),
+        "heb_d": TensorEmb((64,64), param_name="heb_d", evolution_noise_scale=1.0e-3),
+        "rnn_1": Mem(64, param_name="rnn_1"),
+        "rnn_input": Concat(128, input_keys=["fc_1", "rnn_1"]),
+        "rnn_mod": FC(64, param_name="rnn_mod", input_keys="rnn_input", act_type="sigmoid"),
+        "rnn": FC(64, param_name="rnn", input_keys="rnn_input", act_type="tanh",output_keys=["rnn_1"],
+            pl_dict= {"type": "SABCD",
+                "input_start": 64,
+                "input_end" : 128,
+                "S": "rnn_mod",
+                "A": "heb_a",
+                "B": "heb_b",
+                "C": "heb_c",
+                "D": "heb_d"}
+            ),
+        "fc_2": FC(64, param_name="fc_2", input_keys="rnn", act_type="relu"),
+        "output": FC(l, param_name="fc_3", input_keys="fc_2", act_type="none")
         }
 
 # Model Structure for EPMLP
 #model_structures = {
-#        "FC_1": ("fc", ["input"], 64, "relu", 1.0, 1.0e-2, None), 
-#        "Heb_A": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-#        "Heb_B": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-#        "Heb_C": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-#        "Heb_D": ("tensor_embedding", None, (64, 64), "none", 1.0, 1.0e-3, None),
-#        "FC_Mod": ("fc", ["FC_1", "RNN_1"], 64, "sigmoid", 1.0, 1.0e-2, None), 
-#        "FC_2": ("fc", ["FC_1"], 64, "tanh", 1.0, 1.0e-2, 
-#            {"type": "SABCD",
-#                "S": "RNN_Mod",
-#                "A": "Heb_A",
-#                "B": "Heb_B",
-#                "C": "Heb_C",
-#                "D": "Heb_D",
-#                }),
-#        "FC_3": ("fc", ["FC_2"], 64, "sigmoid", 1.0, 1.0e-2, None),
-#        "output": ("fc", ["FC_3"], l, "none", 1.0, 1.0e-2, None)
+#        "observation": Input(l),
+#        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
+#        "heb_a": TensorEmb((64,64), param_name="heb_a", evolution_noise_scale=1.0e-3),
+#        "heb_b": TensorEmb((64,64), param_name="heb_b", evolution_noise_scale=1.0e-3),
+#        "heb_c": TensorEmb((64,64), param_name="heb_c", evolution_noise_scale=1.0e-3),
+#        "heb_d": TensorEmb((64,64), param_name="heb_d", evolution_noise_scale=1.0e-3),
+#        "heb_mod": FC(64, param_name="heb_mod", input_keys="fc_1", act_type="sigmoid"),
+#        "fc_heb": FC(64, param_name="fc_heb", input_keys="fc_1", act_type="tanh",
+#            pl_dict= {"type": "SABCD",
+#                "S": "heb_mod",
+#                "A": "heb_a",
+#                "B": "heb_b",
+#                "C": "heb_c",
+#                "D": "heb_d"}
+#            ),
+#        "fc_2": FC(64, param_name="fc_2", input_keys="fc_heb", act_type="relu"),
+#        "output": FC(l, param_name="fc_3", input_keys="fc_2", act_type="none")
 #        }
 
-# Model Structure for ES-RNN & ES-LSTM & ES-MAML
+# Model Structure for ES-RNN 
 #model_structures = {
-#        "FC_1": ("fc", ["input"], 64, "relu", 1.0, 1.0e-2, None), 
-#        "Versatile": ("rnn", ["FC_1"], 64, "tanh", 1.0, 1.0e-2, None),
-#        #"Versatile": ("lstm", ["FC_1"], 64, "tanh", 1.0, 1.0e-2, None),
-#        #"Versatile": ("fc", ["FC_1"], 64, "tanh", 1.0, 1.0e-2, None),
-#        "FC_2": ("fc", ["Versatile"], 64, "sigmoid", 1.0, 1.0e-2, None),
-#        "output": ("fc", ["FC_2"], l, "none", 1.0, 1.0e-2, None)
+#        "observation": Input(l),
+#        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
+#        "rnn_1": Mem(64, param_name="rnn_1"),
+#        "rnn_input": Concat(128, input_keys=["fc_1", "rnn_1"]),
+#        "rnn": FC(64, param_name="rnn", input_keys="rnn_input", act_type="tanh",output_keys=["rnn_1"]),
+#        "fc_2": FC(64, param_name="fc_2", input_keys="rnn", act_type="relu"),
+#        "output": FC(l, param_name="fc_3", input_keys="fc_2", act_type="none")
 #        }
+
+# Model Structure for ES-LSTM 
+#model_structures = {
+#        "observation": Input(l),
+#        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
+#        "lstm_h": Mem(64, param_name="lstm_h"),
+#        "lstm_c": Mem(64, param_name="lstm_c"),
+#        "lstm_i": Concat(128, input_keys=["fc_1", "lstm_h"]),
+#        "lstm_g_i": FC(64, param_name="lstm_g_i", input_keys="lstm_i", act_type="sigmoid"),
+#        "lstm_g_f": FC(64, param_name="lstm_g_f", input_keys="lstm_i", act_type="sigmoid"),
+#        "lstm_g_o": FC(64, param_name="lstm_g_o", input_keys="lstm_i", act_type="sigmoid"),
+#        "lstm_c_sharp": FC(64, param_name="lstm_c_sharp", input_keys="lstm_i", act_type="tanh"),
+#        "lstm_c_1": EleMul(64, input_keys=["lstm_c_sharp", "lstm_g_i"]),
+#        "lstm_c_2": EleMul(64, input_keys=["lstm_h", "lstm_g_f"]),
+#        "lstm_c_out": SumPooling(64, input_keys=["lstm_c_1", "lstm_c_2"], output_keys="lstm_c"),
+#        "lstm_c_act": ActLayer(64, input_keys="lstm_c", act_type="tanh"),
+#        "lstm_out": EleMul(64, input_keys=["lstm_c_act", "lstm_g_o"]),
+#        "fc_2": FC(64, param_name="fc_2", input_keys="lstm_out", act_type="relu"),
+#        "output": FC(l, param_name="fc_3", input_keys="fc_2", act_type="none")
+#        }
+
+# Model Structure for ES-MAML
+#model_structures = {
+#        "observation": Input(l),
+#        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
+#        "fc_2": FC(64, param_name="fc_2", input_keys="fc_1", act_type="relu"),
+#        "fc_3": FC(64, param_name="fc_3", input_keys="fc_2", act_type="relu"),
+#        "output": FC(l, param_name="fc_4", input_keys="fc_3", act_type="none"),
+#        "inner_learning_rate": {"initial_parameter": [0.1, 0.1, 0.1, 0.1], "noise": 1.0e-2}
+#        }
+
 #If no load_model is specified, the model is random initialized
 #load_model = model.dat
 
@@ -80,9 +118,8 @@ inner_rollouts = [(0.0, "TRAIN", True), (1.0, "TEST", False)]
 pattern_renew = 16
 pattern_retain_iterations = 1
 
-#Select the inner-loop type, for PRNN/EPMLP/ES-RNN/ES-LSTM select "recursive", for ES-MAML select "bp"
-adapt_type = "recursive"
-#adapt_type = "bp"
+#Select the inner-loop type, for PRNN/EPMLP/ES-RNN/ES-LSTM select "forward", for ES-MAML select "supervised_learning"
+adapt_type = "forward"
 
 evolution_pool_size = 400
 learning_rate = 0.02
@@ -99,9 +136,9 @@ def output_to_action(output_list, is_tra):
 #Transform the observation, previous action, and info into observation, pattern is not allowed to use in meta-learning
 def obs_to_input(obs, action, info, pattern):
     if(info["is_observation_valid"]):
-        return list(info["observation"])
+        return list(info["observation"]), list(info["label"])
     else:
-        return action
+        return action, None
 
 #Sampled Tasks for meta-training
 def gen_pattern(pattern_number=16):

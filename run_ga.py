@@ -10,17 +10,15 @@ from time import sleep
 from copy import copy, deepcopy 
 from utils import make_dir
 from utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
-from inner_loop import get_adaption_score_bp, get_adaption_score_pg, get_adaption_score_discrete_pg, get_adaption_score_rec
+from inner_loop_agents import *
+from inner_loop_learners import InnerLoopLearner 
 from EStool import ESTool
-from neural_network import PlasticNN
 
 @parl.remote_class(wait=False)
 class Evaluator(object):
     def __init__(self, config_file):
         self._config = importlib.import_module(config_file)
-        self._nn = PlasticNN(
-                input_neurons=self._config.input_neurons, 
-                model_structures=self._config.model_structures)
+        self._nn = InnerLoopLearner(self._config.model_structures)
         self._output_to_action = self._config.output_to_action 
         self._obs_to_input = self._config.obs_to_input
         self._game = self._config.game()
@@ -33,18 +31,20 @@ class Evaluator(object):
         weighted_scores = []
         for _ in range(task_iterations):
             for pattern in pattern_list:
-                if(self._adapt_type == "bp"):
+                if(self._adapt_type == "supervised_learning"):
                     #gradient descent
-                    weighted_score, score_rollouts, step_rollouts = get_adaption_score_bp(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "pg"):
+                    weighted_score, score_rollouts, step_rollouts = inner_loop_supervised_learning(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                elif(self._adapt_type == "policy_gradient_continuous"):
                     #policy gradient
-                    weighted_score, score_rollouts, step_rollouts = get_adaption_score_pg(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "recursive"):
+                    weighted_score, score_rollouts, step_rollouts = inner_loop_policy_gradient_continuous(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                elif(self._adapt_type == "forward"):
                     #recursion
-                    weighted_score, score_rollouts, step_rollouts = get_adaption_score_rec(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "discrete_pg"):
+                    weighted_score, score_rollouts, step_rollouts = inner_loop_forward(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                elif(self._adapt_type == "policy_gradient_discrete"):
                     #recursion
-                    weighted_score, score_rollouts, step_rollouts = get_adaption_score_discrete_pg(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                    weighted_score, score_rollouts, step_rollouts = inner_loop_policy_gradient_discrete(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                else:
+                    raise Exception("No such inner loop type: %s"%self._adapt_type)
                 weighted_scores.append(weighted_score)
                 score_rollouts_list.append(score_rollouts)
                 step_rollouts_list.append(step_rollouts)
@@ -55,17 +55,15 @@ class Trainer(object):
         print("... Intializing evolution pool")
         config = importlib.import_module(config_file)
         self._actor_number = config.actor_number
-        self._model = PlasticNN(
-                input_neurons=config.input_neurons,
-                model_structures=config.model_structures)
+        self._nn = InnerLoopLearner(config.model_structures)
         self._evolution_handler = ESTool(
                 config.evolution_pool_size, 
-                self._model._noise_factor,
+                self._nn._model._evolution_noises,
                 config.learning_rate)
         if("load_model" in config.__dict__):
             self._evolution_handler.load(config.load_model, config.model_structures)
         else:
-            self._evolution_handler.init_popultation(self._model._parameter_list)
+            self._evolution_handler.init_popultation(self._nn._model._parameters)
 
         parl.connect(config.server)
         self._evaluators = [Evaluator(config_file) for _ in range(self._actor_number)]
@@ -144,7 +142,6 @@ class Trainer(object):
         step_rollouts = numpy.mean(numpy.array(step_rollouts), axis=0)
         whts = numpy.mean(whts)
         return whts, score_rollouts, step_rollouts
-        
 
     def save(self, filename):
         self._evolution_handler.save(filename)

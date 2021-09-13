@@ -146,24 +146,6 @@ def entropy(distribution):
         raise Exception("There is nan in entropy calculation: %s"%distribution)
     return entropy
 
-def reset_learning(weights, neural_structure):
-    i = 0
-    keys = list(weights.keys())
-    for key in keys:
-        if(key.find("Heb") >= 0  or key.find("Forget") >= 0):
-            del(weights[key])
-    for connect_type, _, _, _, _ in neural_structure:
-        i += 1
-        if(connect_type == "recursive"):
-            weights["Heb_ActPos_%d"%i] = 0.0
-            weights["Heb_InhibPos_%d"%i] = - 0.0
-            weights["Heb_UncPos_%d"%i] = 0.0
-            weights["Forget_Pos_%d"%i] = 0.0
-            weights["Heb_ActNeg_%d"%i] = - 0.0
-            weights["Heb_InhibNeg_%d"%i] = 0.0
-            weights["Heb_UncNeg_%d"%i] = 0.0
-            weights["Forget_Neg_%d"%i] = 0.0
-
 def reset_weights_axis(weights, neural_structure):
     i = 0
     for connect_type,number,_,_,_ in neural_structure:

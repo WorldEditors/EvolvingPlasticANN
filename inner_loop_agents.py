@@ -7,15 +7,15 @@ get_adpation_score_discrete_pg: Policy Gradient for RL Tasks (discrete action sp
 """
 import numpy
 from numpy import random
-from neural_network import PlasticNN
+from inner_loop_learners import InnerLoopLearner
 from utils import param_norm, param_norm_2, param_max
 
 def str_list(lst):
     return "\t".join(map(str, lst))
 
 # back propagation (supervised learning) in inner-loop
-def get_adaption_score_rec(config, pattern, nn, game, weights, norm_factor):
-    nn.set_params(weights)
+def inner_loop_forward(config, pattern, learner, game, weights, norm_factor):
+    learner.set_params(weights)
     w_norm = param_norm_2(weights)
     score = 0.0
 
@@ -29,18 +29,18 @@ def get_adaption_score_rec(config, pattern, nn, game, weights, norm_factor):
         steps = 0.0
         start_obs = game.reset(pattern, eps_type)
         if(is_train):
-            use_hebb = True
+            use_heb = True
         else:
-            use_hebb = False
+            use_heb = False
         default_action = game.default_action()
         default_info = game.default_info()
-        inputs = config.obs_to_input(start_obs, default_action, default_info, is_train)
+        inputs, _ = config.obs_to_input(start_obs, default_action, default_info, is_train)
         while not done:
             # Only do hebbian when train episode
-            output, _ = nn.run_inference_single(inputs, hebb=use_hebb)
+            output = learner.run_forward(inputs, heb_is_on=use_heb)
             action = config.output_to_action(output, is_train)
             done, obs, info = game.step(action)
-            inputs = config.obs_to_input(obs, action, info, is_train)
+            inputs, _ = config.obs_to_input(obs, action, info, is_train)
             steps += 1.0
         #put the information of the last step in it
         score += (game.score - norm_factor * w_norm) * rollout_weight
@@ -51,8 +51,8 @@ def get_adaption_score_rec(config, pattern, nn, game, weights, norm_factor):
     return score / weights_all, score_rollouts, step_rollouts#, tmp_ret_rnn
 
 # back propagation (supervised learning) in inner-loop
-def get_adaption_score_pg(config, pattern, nn, game, weights, norm_factor):
-    nn.set_params(weights)
+def inner_loop_policy_gradient_continuous(config, pattern, learner, game, weights, norm_factor):
+    learner.set_params(weights)
     w_norm = param_norm_2(weights)
     score = 0.0
 
@@ -69,20 +69,20 @@ def get_adaption_score_pg(config, pattern, nn, game, weights, norm_factor):
         default_action = game.default_action()
         default_info = game.default_info()
         tmp_rewards = []
-        inputs = config.obs_to_input(start_obs, default_action, default_info, pattern, is_train, extra_info=steps)
+        inputs, _ = config.obs_to_input(start_obs, default_action, default_info, is_train)
         while not done:
-            output, _ = nn.run_inference_single(inputs)
+            output = learner.run_forward(inputs)
             if(eps_type=="TRAIN"):
                 true_output = numpy.clip(output + random.normal(size=output.shape,loc=0,scale=0.10), -1.0, 1.0)
-                action = config.output_to_action(true_output)
+                action = config.output_to_action(true_output, is_train)
             else:
-                action = config.output_to_action(output)
+                action = config.output_to_action(output, is_train)
             done, obs, info = game.step(action)
             if(eps_type=="TRAIN"):
                 observations.append(inputs)
                 actions.append(action)
                 tmp_rewards.append(info["reward"])
-            inputs = config.obs_to_input(obs, action, info, pattern, is_train, extra_info=steps)
+            inputs, _ = config.obs_to_input(obs, action, info, is_train)
             steps += 1.0
         if(is_train):
             # To correctly calculate the final state
@@ -98,13 +98,13 @@ def get_adaption_score_pg(config, pattern, nn, game, weights, norm_factor):
             action_arr = numpy.array(actions)
             adv_arr = numpy.array(advantage) - numpy.mean(advantage)
             #print(advantage, adv_arr)
-            for lr in nn._parameter_list["Inner_LR"]:
-                nn.run_pg(lr, obs_arr, action_arr, adv_arr)
+            for lr in learner._model._parameters["inner_learning_rate"]:
+                learner.run_policy_gradient_continuous(lr, obs_arr, action_arr, adv_arr)
     return score / weights_all, score_rollouts, step_rollouts
 
 # back propagation (supervised learning) in inner-loop
-def get_adaption_score_bp(config, pattern, nn, game, weights, norm_factor):
-    nn.set_params(weights)
+def inner_loop_supervised_learning(config, pattern, learner, game, weights, norm_factor):
+    learner.set_params(weights)
     w_norm = param_norm_2(weights)
     score = 0.0
 
@@ -123,8 +123,8 @@ def get_adaption_score_bp(config, pattern, nn, game, weights, norm_factor):
         features.append(inputs)
         labels.append(outputs)
         while not done:
-            output, _ = nn.run_inference_single(inputs)
-            action = config.output_to_action(output)
+            output = learner.run_forward(inputs)
+            action = config.output_to_action(output, is_train)
             done, obs, info = game.step(action)
             inputs, outputs = config.obs_to_input(obs, action, info, is_train)
             if(is_train):
@@ -140,13 +140,13 @@ def get_adaption_score_bp(config, pattern, nn, game, weights, norm_factor):
         if(is_train):
             feature_arr = numpy.array(features)
             label_arr = numpy.array(labels)
-            for lr in nn._parameter_list["Inner_LR"]:
-                nn.run_bp(lr, feature_arr, label_arr)
+            for lr in learner._model._parameters["inner_learning_rate"]:
+                learner.run_supervised_learning(lr, feature_arr, label_arr)
     return score / weights_all, score_rollouts, step_rollouts
 
 # back propagation (supervised learning) in inner-loop
-def get_adaption_score_discrete_pg(config, pattern, nn, game, weights, norm_factor):
-    nn.set_params(weights)
+def inner_loop_policy_gradient_discrete(config, pattern, learner, game, weights, norm_factor):
+    learner.set_params(weights)
     w_norm = param_norm_2(weights)
     score = 0.0
 
@@ -163,16 +163,16 @@ def get_adaption_score_discrete_pg(config, pattern, nn, game, weights, norm_fact
         default_action = game.default_action()
         default_info = game.default_info()
         tmp_rewards = []
-        inputs = config.obs_to_input(start_obs, default_action, default_info, is_train)
+        inputs, _ = config.obs_to_input(start_obs, default_action, default_info, is_train)
         while not done:
-            output, _ = nn.run_inference_single(inputs)
-            action = config.output_to_action(output)
+            output = learner.run_forward(inputs)
+            action = config.output_to_action(output, is_train)
             done, obs, info = game.step(action)
             if(is_train):
                 observations.append(inputs)
                 actions.append(action)
                 tmp_rewards.append(info["reward"])
-            inputs = config.obs_to_input(obs, action, info)
+            inputs, _ = config.obs_to_input(obs, action, info)
             steps += 1.0
         if(is_train):
             # To correctly calculate the final state
@@ -187,6 +187,6 @@ def get_adaption_score_discrete_pg(config, pattern, nn, game, weights, norm_fact
             obs_arr = numpy.array(observations)
             action_arr = numpy.array(actions)
             adv_arr = numpy.array(advantage) - numpy.mean(advantage)
-            for lr in nn._parameter_list["Inner_LR"]:
-                nn.run_discrete_pg(lr, obs_arr, action_arr, adv_arr)
+            for lr in learner._model._parameters["inner_learning_rate"]:
+                learner.run_policy_gradient_discrete(lr, obs_arr, action_arr, adv_arr)
     return score / weights_all, score_rollouts, step_rollouts
