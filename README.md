@@ -12,7 +12,7 @@ metagym >= 0.1.0
 
 # Run Meta-Training in Random Maze-2D environments
 ```bash
-python run_ga.py config_maze_train
+python run_train.py config_maze_train
 ```
 
 # Run Meta-Testing in Random Maze-2D environments
