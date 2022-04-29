@@ -7,7 +7,7 @@ get_adpation_score_discrete_pg: Policy Gradient for RL Tasks (discrete action sp
 """
 import numpy
 from numpy import random
-from utils import param_norm, param_norm_2, param_max
+from epann.utils import param_norm, param_norm_2, param_max
 
 def str_list(lst):
     return "\t".join(map(str, lst))

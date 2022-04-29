@@ -3,8 +3,8 @@ Assembly of Layers to Give A plastic Neural Networks
 """
 import numpy
 import pickle
-from layers import *
-from parameters import Parameters
+from epann.layers import *
+from epann.parameters import Parameters
 
 class Models(Parameters):
     def __init__(self, **kwargs):

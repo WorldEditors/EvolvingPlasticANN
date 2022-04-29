@@ -3,10 +3,10 @@ Layers Configuration
 """
 import numpy
 import time
-from activation import ActFunc
 from numpy.lib.stride_tricks import as_strided
-from parameters import Parameters
-from utils import categorical
+from epann.parameters import Parameters
+from epann.utils import categorical
+from epann.activation import ActFunc
 
 class Layers(object):
     def __init__(self, **kw_args):

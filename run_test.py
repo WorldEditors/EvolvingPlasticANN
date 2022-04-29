@@ -8,11 +8,12 @@ import parl
 import importlib
 from time import sleep
 from copy import copy, deepcopy 
-from utils import make_dir
-from utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
-from inner_loop_agents import *
+
+from epann.utils import make_dir
+from epann.utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
+from epann.inner_loop_agents import *
 from sklearn.manifold import TSNE
-from EStool import ESTool
+from epann.EStool import ESTool
 
 def get_mean_std(arr):
     tarr = numpy.array(arr)

@@ -9,12 +9,12 @@ import importlib
 from numpy import random
 from time import sleep
 from copy import copy, deepcopy 
-from utils import make_dir
-from utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
-from inner_loop_agents import *
-from EStool import ESTool
+from epann.utils import make_dir
+from epann.utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
+from epann.inner_loop_agents import *
+from epann.EStool import ESTool
+from envs.env_maze import MazeTask
 from gen_train_test_patterns import gen_patterns
-from env_maze import  MazeTask
 
 if __name__=='__main__':
     if(len(sys.argv) < 2):

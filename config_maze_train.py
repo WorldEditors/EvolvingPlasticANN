@@ -5,11 +5,11 @@ import os
 import math
 import random
 import numpy
-from env_maze import MazeTask
-from env_maze import gen_pattern as gen_single
-from env_maze import output_to_action
-from env_maze import obs_to_input
-from utils import categorical
+from envs.env_maze import  MazeTask
+from envs.env_maze import gen_pattern as gen_single
+from envs.env_maze import output_to_action
+from envs.env_maze import obs_to_input
+from epann.utils import categorical
 from models_zoo import ModelRNNBase1, ModelLSTMBase1, ModelFCBase2
 from models_zoo import ModelPRNNPreMod, ModelPRNNAfterMod, ModelPRNNNoMod
 from gen_train_test_patterns import resample_maze9, resample_maze15, gen_patterns

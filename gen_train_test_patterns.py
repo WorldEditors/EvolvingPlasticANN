@@ -1,9 +1,10 @@
-from env_maze import  MazeTask
-from env_maze import gen_pattern as gen_single
 from numpy import random
 import numpy
 import pickle
 import sys
+
+from envs.env_maze import MazeTask
+from envs.env_maze import gen_pattern as gen_single
 
 def dump_pattern(pattern_number, cell_scale, file_name):
     handle = open(file_name, "wb")

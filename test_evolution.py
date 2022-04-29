@@ -1,6 +1,6 @@
 import numpy.random as random
 import numpy
-from EStool import ESTool
+from epann.EStool import ESTool
 
 
 class ToyDemo(object):

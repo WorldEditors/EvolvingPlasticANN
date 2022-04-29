@@ -1,8 +1,8 @@
 import numpy
 import math
-from models import Models
-from layers import Layers, Memory, FC, Pooling, Hebbian, PlasticFC, PlasticUnFC, PlasticRNN, LSTM, SimpleRNN, Conv, VSML 
-from activation import ActFunc
+from epann.layers import Layers, Memory, FC, Pooling, Hebbian, PlasticFC, PlasticUnFC, PlasticRNN, LSTM, SimpleRNN, Conv, VSML 
+from epann.models import Models
+from epann.activation import ActFunc
 
 class ModelPRNNAfterMod(Models):
     def build_model(self):

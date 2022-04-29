@@ -8,10 +8,11 @@ import parl
 import importlib
 from time import sleep
 from copy import copy, deepcopy 
-from utils import make_dir
-from utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
-from inner_loop_agents import *
-from EStool import ESTool
+
+from epann.utils import make_dir
+from epann.utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
+from epann.inner_loop_agents import *
+from epann.EStool import ESTool
 
 @parl.remote_class(wait=False)
 class Evaluator(object):
