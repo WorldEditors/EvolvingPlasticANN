@@ -11,38 +11,32 @@ from copy import copy, deepcopy
 from utils import make_dir
 from utils import add_params, diff_params, multiply_params, mean_params, sum_params, param_max
 from inner_loop_agents import *
-from inner_loop_learners import InnerLoopLearner 
 from EStool import ESTool
 
 @parl.remote_class(wait=False)
 class Evaluator(object):
     def __init__(self, config_file):
         self._config = importlib.import_module(config_file)
-        self._nn = InnerLoopLearner(self._config.model_structures)
+        self._nn = self._config.model
         self._output_to_action = self._config.output_to_action 
         self._obs_to_input = self._config.obs_to_input
         self._game = self._config.game()
         self._ent_factor = self._config.ent_factor
         self._adapt_type = self._config.adapt_type
 
-    def cal_score(self, i, weights_x, pattern_list, task_iterations):
+    def cal_score(self, i, weights_x, shape, static_weights, pattern_list, task_iterations):
         score_rollouts_list = []
         step_rollouts_list = []
         weighted_scores = []
         for _ in range(task_iterations):
             for pattern in pattern_list:
-                if(self._adapt_type == "supervised_learning"):
-                    #gradient descent
-                    weighted_score, score_rollouts, step_rollouts = inner_loop_supervised_learning(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "policy_gradient_continuous"):
-                    #policy gradient
-                    weighted_score, score_rollouts, step_rollouts = inner_loop_policy_gradient_continuous(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "forward"):
+                self._nn.from_vector(weights_x, shape)
+                self._nn.set_all_parameters(static_weights, is_static=True)
+                additional_wht = self._ent_factor * param_norm_2(weights_x)
+                self._nn.reset()
+                if(self._adapt_type == "forward"):
                     #recursion
-                    weighted_score, score_rollouts, step_rollouts = inner_loop_forward(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
-                elif(self._adapt_type == "policy_gradient_discrete"):
-                    #recursion
-                    weighted_score, score_rollouts, step_rollouts = inner_loop_policy_gradient_discrete(self._config, pattern, self._nn, self._game, weights_x, self._ent_factor)
+                    weighted_score, score_rollouts, step_rollouts, _ = inner_loop_forward(self._config, pattern, self._nn, self._game, additional_wht)
                 else:
                     raise Exception("No such inner loop type: %s"%self._adapt_type)
                 weighted_scores.append(weighted_score)
@@ -55,32 +49,44 @@ class Trainer(object):
         print("... Intializing evolution pool")
         config = importlib.import_module(config_file)
         self._actor_number = config.actor_number
-        self._nn = InnerLoopLearner(config.model_structures)
+        self._nn = config.model
         self._evolution_handler = ESTool(
                 config.evolution_pool_size, 
-                self._nn._model._evolution_noises,
-                config.learning_rate)
+                config.evolution_topk_size,
+                config.evolution_step_size,
+                default_cov_lr=config.evolution_lr,
+                segments=self._nn.para_segments
+                )
+        para_vec, self._nn_shape = self._nn.to_vector
+        print("Current Parameter Number: %d, parameters: %s" % (len(para_vec), self._nn_shape))
+        print("Current Static Parameter parameters: %s" % (self._nn.static_parameters.keys()))
         if("load_model" in config.__dict__):
-            self._evolution_handler.load(config.load_model, config.model_structures)
+            self._evolution_handler.load(config.load_model)
         else:
-            self._evolution_handler.init_popultation(self._nn._model._parameters)
+            self._evolution_handler.init_popultation(para_vec, self._nn.static_parameters)
+        print(self._nn.static_parameters.keys())
 
         parl.connect(config.server)
         self._evaluators = [Evaluator(config_file) for _ in range(self._actor_number)]
-        self._pattern_list = config.gen_pattern()
+        self._pattern_list = config.train_patterns()
         self._pattern_renew = config.pattern_renew
         self._pattern_retain_iterations = config.pattern_retain_iterations
         self._task_iterations = config.task_sub_iterations
+        self._max_wait_time = 120
+        self._max_wait_time_eval = 240
         self._config = config
+        self._failed_actors = set()
         self._pattern_kept_time = 0
         print("... Intialization Finished")
+
+    def check_active_actors(self):
+        if(len(self._failed_actors) > self._actor_number // 2):
+            raise Exception("To many actors failed, quit job, please check your cluster")
 
     def evolve(self, iteration):
         self._pattern_kept_time += 1
         if(self._pattern_kept_time >= self._pattern_retain_iterations): 
-            #self._pattern_list.extend(self._config.gen_pattern(self._pattern_renew))
-            #del(self._pattern_list[:self._pattern_renew])
-            self._pattern_list = self._config.gen_pattern()
+            self._pattern_list = self._config.train_patterns()
             self._pattern_kept_time = 0
         tasks = []
         
@@ -88,23 +94,51 @@ class Trainer(object):
         i = 0
         score_rollouts = [[] for i in range(self._evolution_handler.pool_size)]
         step_rollouts = [[] for i in range(self._evolution_handler.pool_size)]
+        failed_res = set()
         norms = []
         while i < self._evolution_handler.pool_size:
+            unrecv_res = dict()
             i_b = i
             for j in range(self._actor_number):
-                if(i < self._evolution_handler.pool_size):
-                    tasks.append(self._evaluators[j].cal_score(i,
+                if(i < self._evolution_handler.pool_size and j not in self._failed_actors):
+                    tasks.append((j, self._evaluators[j].cal_score(i,
                             self._evolution_handler.get_weights(i), 
+                            self._nn_shape, self._evolution_handler.get_static_weights,
                             self._pattern_list, 
-                            self._task_iterations))
+                            self._task_iterations)))
+                    unrecv_res[i] = j
                     i+=1
             i_e = i
-            for idx in range(i_b, i_e):
-                cur_i, weighted_score, score_rollout, step_rollout, norm = tasks[idx].get()
-                self._evolution_handler.set_score(cur_i, weighted_score)
-                score_rollouts[cur_i] = score_rollout
-                step_rollouts[cur_i] = step_rollout
-                norms.append(norm)
+            wait_time = 0
+            while wait_time < self._max_wait_time and len(unrecv_res) > 0:
+                time.sleep(1)
+                remove_keys = set()
+                for key in unrecv_res:
+                    try:
+                        cur_i, weighted_score, score_rollout, step_rollout, norm = tasks[key][1].get_nowait()
+                        self._evolution_handler.set_score(cur_i, weighted_score)
+                        score_rollouts[cur_i] = score_rollout
+                        step_rollouts[cur_i] = step_rollout
+                        norms.append(norm)
+                        remove_keys.add(key)
+                    except Exception:
+                        pass
+                for key in remove_keys:
+                    del unrecv_res[key]
+                wait_time += 1
+                #print("Wait for %d seconds for acquiring results..."%wait_time)
+                sys.stdout.flush()
+            if(len(unrecv_res) > 0):
+                for key in unrecv_res.keys():
+                    print("remote server idx %d exceed time limits, abandom the server" % unrecv_res[key])
+                    self._failed_actors.add(unrecv_res[key])
+                    failed_res.add(key)
+
+        for cur_i in sorted(failed_res, reverse=True):
+            del self._evolution_handler._evolution_pool[cur_i]
+            del score_rollouts[cur_i]
+            del step_rollouts[cur_i]
+
         weighted_score = self._evolution_handler.stat_avg()
         score_rollouts = numpy.mean(numpy.array(score_rollouts), axis=0)
         step_rollouts = numpy.mean(numpy.array(step_rollouts), axis=0)
@@ -117,27 +151,49 @@ class Trainer(object):
 
     def eval(self):
         tasks = []
-        test_pattern_lst = self._config.test_patterns()
-        weights = self._evolution_handler._cur_param
+        valid_pattern_lst = self._config.valid_patterns()
+        weights = self._evolution_handler._base_weights
         score_rollouts = []
         step_rollouts = []
         whts = []
-        deta = (len(test_pattern_lst)  - 1) // self._actor_number + 1
+        deta = (len(valid_pattern_lst)  - 1) // (self._actor_number - len(self._failed_actors)) + 1
         i = 0
         j = 0
-        while j < len(test_pattern_lst):
-            tasks.append(self._evaluators[i].cal_score(i,
-                    weights,
-                    test_pattern_lst[j:j+deta],
-                    self._task_iterations)
-                    )
-            j += deta
+        wait_time = 0
+        unrecv_res = set()
+        print("Start Evaluation, Each CPU calculate %d Tasks"%deta)
+        while j < len(valid_pattern_lst):
+            if(i not in self._failed_actors):
+                tasks.append(self._evaluators[i].cal_score(i,
+                        weights,
+                        self._nn_shape, self._evolution_handler.get_static_weights,
+                        valid_pattern_lst[j:j+deta],
+                        self._task_iterations)
+                        )
+                j += deta
+                unrecv_res.add(i)
             i += 1
-        for idx in range(len(tasks)):
-            cur_i, weighted_score, score_rollout, step_rollout, norm = tasks[idx].get()
-            score_rollouts.append(score_rollout)
-            step_rollouts.append(step_rollout)
-            whts.append(weighted_score)
+
+        #print("Waiting for acquiring results...")
+        while wait_time < self._max_wait_time_eval and len(unrecv_res) > 0:
+            time.sleep(1)
+            for _ in range(len(unrecv_res)):
+                idx = unrecv_res.pop()
+                try:
+                    cur_i, weighted_score, score_rollout, step_rollout, norm = tasks[idx].get_nowait()
+                    score_rollouts.append(score_rollout)
+                    step_rollouts.append(step_rollout)
+                    whts.append(weighted_score)
+                except Exception:
+                    unrecv_res.add(idx)
+            wait_time += 1
+            #print("Wait for %d seconds for acquiring results..."%wait_time)
+            sys.stdout.flush()
+        if(len(unrecv_res) > 0):
+            print("Out of time for servers id: %s" % unrecv_res)
+            for key in unrecv_res:
+                self._failed_actors.add(key)
+
         score_rollouts = numpy.mean(numpy.array(score_rollouts), axis=0)
         step_rollouts = numpy.mean(numpy.array(step_rollouts), axis=0)
         whts = numpy.mean(whts)
@@ -150,15 +206,16 @@ if __name__=='__main__':
     if(len(sys.argv) < 2):
         print("Usage: %s configuration_file" % sys.argv[0])
         sys.exit(1)
-    config = importlib.import_module(sys.argv[1])
+    config_module_name = sys.argv[1].replace(".py", "")
+    config = importlib.import_module(config_module_name)
     log_file = config.directory + "/train.log"
     model_directory = config.directory + "/models/"
     make_dir(model_directory)
-    logger = open(log_file, "w")
+    logger = open(log_file, "a")
 
     smooth_scores = []
     avg_score = - 1.0e+10
-    trainer = Trainer(sys.argv[1])
+    trainer = Trainer(config_module_name)
 
     #initial_test
     wht, scores, steps = trainer.eval()
@@ -170,11 +227,12 @@ if __name__=='__main__':
         top_5_score, score_rollouts, step_rollouts, norm = trainer.evolve(iteration)
         if((iteration + 1) % config.save_iter == 0):
             trainer.save(model_directory + "model.%06d.dat"%(iteration+1))
+            print("Models model.%06d.dat saved"%(iteration+1))
         localtime = time.asctime(time.localtime(time.time()))
         smooth_scores.append(top_5_score)
         smooth_scores = smooth_scores[-100:]
         avg_score = numpy.mean(smooth_scores) 
-        logger.write("%s iteration: %d; smoothed_score: %.4f; score_rollouts: %s; step_roullouts: %s; parameter - l2norm: %s; top_k_score: %.4f\n"%
+        logger.write("%s iteration: %d; smoothed_score: %.4f; score_rollouts: %s; step_roullouts: %s; parameter - l2norm: %.4f; top_k_score: %.4f\n"%
                 (localtime, iteration + 1, avg_score, score_rollouts, step_rollouts, norm, top_5_score))
         logger.flush()
         if((iteration + 1) % config.test_iter == 0):

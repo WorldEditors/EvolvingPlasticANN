@@ -4,9 +4,12 @@ Dicts for Activation Function
 import sys
 import numpy
 
-def softmax(self, x):
+def softmax(x):
     w = numpy.exp(x)
     return w/numpy.sum(w)
+
+def grad_softmax(x):
+    return x * (1.0 - x)
 
 def tanh(x):
     return numpy.tanh(x)
@@ -25,6 +28,13 @@ def relu(x):
 
 def grad_relu(x):
     return (x > 0).astype("float32")
+
+def softsign(x):
+    return x * numpy.reciprocal(numpy.abs(x) + 1)
+
+def grad_softsign(x):
+    ax = numpy.abs(x)
+    return ax * numpy.reciprocal(ax + 1)
 
 def step(x):
     return asarray(x>0, dtype="float32")

@@ -2,63 +2,77 @@
 Assembly of Layers to Give A plastic Neural Networks
 """
 import numpy
-from layers import Layers
+import pickle
+from layers import *
+from parameters import Parameters
 
-class PlasticModels(object):
-    def __init__(self):
+class Models(Parameters):
+    def __init__(self, **kwargs):
+        super(Models, self).__init__()
+        for key in kwargs:
+            self.__dict__[key] = kwargs[key]
+        self._layers = list()
+        self.build_model()
+
+    def build_model(self):
+        raise NotImplementedError("Must specify build model")
+
+    def add_layer(self, layer_type, **kw_args):
+        self._layers.append(layer_type(params=self, **kw_args))
+        return self._layers[-1]
+
+    def clear_layers(self):
+        self._layers = list()
         self._parameters = dict()
-        self._evolution_noises = dict()
-        self._layers = dict()
 
-    def initialize_parameters(self):
-        for key in self._layers:
-            self._layers[key].initialize_layer(self)
-
-    def add_layer(self, key, layer):
-        self._layers[key] = layer
-
-    def get_layer(self, key):
-        return self._layers[key]
-
-    def get_parameter(self, key):
-        return self._parameters[key]
-
-    def mod_parameter(self, key, mod):
-        self._parameters[key] += mod
-
-    def get_layer_hidden(self, key):
-        return self._layers[key].hidden
-
-    def add_parameter(self, key, param, noise):
-        self._parameters[key] = numpy.copy(param)
-        self._evolution_noises[key] = noise
-
-    def has_parameter(self, key):
-        return (key in self._parameters)
-
+    # reset the model to initial_states
     def reset(self):
-        for key in self._layers:
-            sel._layers.reset()
+        for layer in self._layers:
+            layer.reset()
 
-    def forward(self, obs, heb_is_on):
-        if("observation" not in self._layers or "output" not in self._layers):
-            raise Exception("A model must have observation layer and output layer")
-        self._layers["observation"].set(obs)
-        for key in self._layers:
-            self._layers[key](self, heb_is_on)
+    def forward(self, inputs):
+        raise NotImplementedError("forward function not implemented")
 
-        return self._layers["output"].hidden 
+    def __call__(self, inputs):
+        return self.forward(inputs)
 
-    def forward_batch(self, obs):
-        if("observation" not in self._layers or "output" not in self._layers):
-            raise Exception("A model must have observation layer and output layer")
-        self._layers["observation"].set(obs)
-        for key in self._layers:
-            self._layers[key].forward_batch(self)
+    def load(self, file_name):
+        file_op = open(file_name, "rb")
+        self.set_all_parameters(pickle.load(file_op))
+        file_op.close()
+        self.reset()
 
-        return self._layers["output"].hidden 
+    def save(self, file_name):
+        file_op = open(file_name, "wb")
+        pickle.dump(self._parameters, file_op)
+        file_op.close()
+
+    def __repr__(self):
+        return self.parameters()
 
     def backward_batch(self, grads):
-        if("observation" not in self._layers or "output" not in self._layers):
-            raise Exception("A model must have observation layer and output layer")
-        self._layers["output"].backward_batch(grads, self)
+        raise NotImplementedError("backward function not implemented")
+
+    def forward_batch(self, grads):
+        raise NotImplementedError("forward function not implemented")
+
+    # Policy Gradient for Continuous action space
+    def backward_policy_gradient_continuous(self, alpha, inputs, actions, advantage):
+        outputs = self.forward_batch(inputs)
+        grads = alpha * numpy.expand_dims(advantage, axis=1) * (outputs - actions)
+        self.backward_batch(grads)
+
+    # Back propagation (Policy Gradient for discrete action space)
+    def backward_policy_gradient_discrete(self, alpha, inputs, actions, advantage):
+        outputs = self.forward_batch(inputs)
+        idxes = numpy.vstack([numpy.arange(actions.shape[0]), actions])
+        sigma = numpy.zeros_like(outputs)
+        sigma[idxes.T] = 1.0
+        grads = alpha * numpy.expand_dims(advantage, axis=1) * (outputs - sigma)
+        self.backward_batch(grads)
+
+    # Back propagation (Supservised Learning)
+    def backward_supervised_learning(self, alpha, inputs, labels):
+        outputs = self.forward_batch(inputs)
+        grads = 2.0 * alpha * numpy.clip(outputs - labels, -1.0, 1.0)
+        self.backward_batch(grads)

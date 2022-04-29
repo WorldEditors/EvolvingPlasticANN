@@ -3,51 +3,24 @@
 # File: config.py
 import os
 import math
+import numpy
+
+#from env_wrn import NavigatorTask
+#import env_wrn
 from env_robot_navigating import WRNav
-from layers import *
+from models_zoo import ModelPFCBase1, ModelRNNBase1, ModelLSTMBase1, ModelPRNNBase1
 
 root = "./results/"
 directory = root + "/workspace_WRNav/"
 ent_factor = 1.0e-6
 horizons = 100
-noise = 0.01
+noise = 0.0
 
 # Model Structure for EPRNN
-model_structures = {
-        "observation": Input(3),
-        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
-        "fc_2": FC(64, param_name="fc_2", input_keys="fc_1", act_type="relu"),
-        "heb_a": TensorEmb((64,64), param_name="heb_a", evolution_noise_scale=1.0e-3),
-        "heb_b": TensorEmb((64,64), param_name="heb_b", evolution_noise_scale=1.0e-3),
-        "heb_c": TensorEmb((64,64), param_name="heb_c", evolution_noise_scale=1.0e-3),
-        "heb_d": TensorEmb((64,64), param_name="heb_d", evolution_noise_scale=1.0e-3),
-        "rnn_1": Mem(64, param_name="rnn_1"),
-        "rnn_input": Concat(128, input_keys=["fc_2", "rnn_1"]),
-        "rnn_mod": FC(64, param_name="rnn_mod", input_keys="rnn_input", act_type="sigmoid"),
-        "rnn": FC(64, param_name="rnn", input_keys="rnn_input", act_type="tanh",output_keys=["rnn_1"],
-            pl_dict= {"type": "SABCD",
-                "input_start": 64,
-                "input_end" : 128,
-                "S": "rnn_mod",
-                "A": "heb_a",
-                "B": "heb_b",
-                "C": "heb_c",
-                "D": "heb_d"}
-            ),
-        "fc_3": FC(64, param_name="fc_3", input_keys="rnn", act_type="relu"),
-        "output": FC(2, param_name="fc_4", input_keys="fc_3", act_type="tanh")
-        }
-
-# Model Structure for ES-MAML
-#model_structures = {
-#        "observation": Input(3),
-#        "fc_1": FC(64, param_name="fc_1", input_keys="observation", act_type="relu"),
-#        "fc_2": FC(64, param_name="fc_2", input_keys="fc_1", act_type="relu"),
-#        "fc_3": FC(64, param_name="fc_3", input_keys="fc_2", act_type="relu"),
-#        "fc_4": FC(64, param_name="fc_4", input_keys="fc_3", act_type="relu"),
-#        "output": FC(2, param_name="fc_5", input_keys="fc_4", act_type="none"),
-#        "inner_learning_rate": {"initial_parameter": [0.1, 0.1, 0.1, 0.1], "noise": 1.0e-2}
-#        }
+model = ModelPRNNBase1(input_shape=(3,), output_shape=(2,), hidden_size=64, extra_hidden_size=64, output_activation="tanh", initialize_settings='P', plasticity_type="SABCD")
+#model = ModelPFCBase1(input_shape=(3,), output_shape=(2,), hidden_size=64, extra_hidden_size=64, output_activation="tanh", initialize_settings='P', plasticity_type="SABCD")
+#model = ModelRNNBase1(input_shape=(3,), output_shape=(2,), hidden_size=64, extra_hidden_size=64, output_activation="tanh")
+#model = ModelLSTMBase1(input_shape=(3,), output_shape=(2,), hidden_size=64, extra_hidden_size=64, output_activation="tanh")
 
 # Refer to config_SeqPred_task.py for other configurations
 
@@ -56,13 +29,14 @@ model_structures = {
 
 #Address for xparl servers, do "xparl start " in your server
 #server = "localhost:8010"
-server = "10.216.186.16:8010"
+server = "10.216.186.18:8010"
 
 #True Batch size = Actor_number * batch_size
-actor_number = 400
+actor_number = 410
 batch_size = 1
 task_sub_iterations = 1
-inner_rollouts = [(0.0, "TRAIN", True), (1.0, "TEST", False)]
+#Each Element includes weight of the episode in calculating score, "TEST/TRAIN" information that is given to the environments, and Train=True/False information given to the inner_loop
+inner_rollouts = [(1.0, "TEST", True)]
 
 #The task pattern are kept still for that much steps
 pattern_renew = 4
@@ -86,7 +60,7 @@ def output_to_action(output_list, is_tra):
 
 #Transform the observation, previous action, and info into observation, pattern is not allowed to use in meta-learning
 def obs_to_input(obs, action, info, pattern):
-    return list(action) + [info["observation"]], None
+    return list(action) + list(obs), None
 
 #Sampled Tasks for meta-training
 def gen_pattern(pattern_number=4):

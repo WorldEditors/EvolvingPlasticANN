@@ -123,15 +123,22 @@ def param_norm(parameters):
 
 def param_norm_2(parameters):
     norm = 0.0
-    for key in parameters:
-        norm += numpy.mean(parameters[key] * parameters[key])
-    return numpy.sqrt(norm/len(parameters))
+    if(isinstance(parameters, dict)):
+        for key in parameters:
+            norm += numpy.mean(parameters[key] * parameters[key])
+        norm /= len(parameters)
+    else:
+        norm = numpy.mean(parameters * parameters)
+    return numpy.sqrt(norm)
 
 def param_max(parameters):
     size = 0.0
     norm = 0.0
-    for key in parameters:
-        norm = max(numpy.max(numpy.abs(parameters[key])), norm)
+    if(isinstance(parameters, dict)):
+        for key in parameters:
+            norm = max(numpy.max(numpy.abs(parameters[key])), norm)
+    else:
+        norm = numpy.max(numpy.abs(parameters))
     return norm
 
 def check_validity(parameters):

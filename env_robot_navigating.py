@@ -7,7 +7,6 @@ from numpy import random
 from numpy import cos, sin
 from math import acos, asin
 
-
 def signals_transmission(d, P_o, d_o, n, sigma):
     signal = max(0.0, P_o - n * numpy.log(d / d_o) + sigma * random.normal(0.0,1.0)) 
     return signal
@@ -40,7 +39,13 @@ class WRNav(object):
         self._direction = 0
         self._goal = pattern[:2]
         self._signal = pattern[2:]
-        return []
+
+        dx = self._goal[0] - self._pos_x
+        dy = self._goal[1] - self._pos_y
+        dist = (dx ** 2 + dy ** 2) ** 0.5
+        obs_sig = signals_transmission(dist, self._signal[0], 0.02, self._signal[1], self._noise)
+
+        return [obs_sig]
 
     def step(self, action):
         self._step += 1
@@ -98,7 +103,7 @@ class WRNav(object):
         self._score += reward
         obs_sig = signals_transmission(dist, self._signal[0], 0.02, self._signal[1], self._noise)
         # Notice that the reward can not be used as instant observations
-        return done, [], ({"observation":obs_sig, "reward":reward, "steps":self._step, 
+        return done, [obs_sig], ({"reward":reward, "steps":self._step, 
                 "position":[self._pos_x, self._pos_y], "direction": self._direction})
 
     @property
@@ -112,11 +117,7 @@ class WRNav(object):
         return list(random.uniform(-1.0, 1.0, size=(2, )))
 
     def default_info(self):
-        dx = self._goal[0] - self._pos_x
-        dy = self._goal[1] - self._pos_y
-        dist = (dx ** 2 + dy ** 2) ** 0.5
-        obs_sig = signals_transmission(dist, self._signal[0], 0.02, self._signal[1], self._noise)
-        return {"observation":obs_sig, "reward":0.0, "steps": 0, "position":[self._pos_x, self._pos_y], "direction": self._direction}
+        return {"reward":0.0, "steps": 0, "position":[self._pos_x, self._pos_y], "direction": self._direction}
 
     def need_learning(self):
         return True
@@ -130,5 +131,5 @@ if __name__=="__main__":
     game.reset(WRNav.gen_pattern(), "TRAIN")
     done = False
     while not done:
-        done, _, info = game.step(game.random_action())
-        print(info)
+        done, obs, info = game.step(game.random_action())
+        print(obs, info)
