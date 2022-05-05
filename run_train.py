@@ -67,7 +67,7 @@ class Trainer(object):
             self._evolution_handler.init_popultation(para_vec, self._nn.static_parameters)
         print(self._nn.static_parameters.keys())
 
-        parl.connect(config.server)
+        parl.connect(config.server, distributed_files=['./epann/*.py', './envs/*.py'])
         self._evaluators = [Evaluator(config_file) for _ in range(self._actor_number)]
         self._pattern_list = config.train_patterns()
         self._pattern_renew = config.pattern_renew
