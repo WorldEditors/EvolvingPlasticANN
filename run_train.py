@@ -87,7 +87,7 @@ class Trainer(object):
     def evolve(self, iteration):
         self._pattern_kept_time += 1
         if(self._pattern_kept_time >= self._pattern_retain_iterations): 
-            self._pattern_list = self._config.train_patterns()
+            self._pattern_list = self._config.train_patterns(n_step=iteration)
             self._pattern_kept_time = 0
         tasks = []
         
@@ -195,10 +195,14 @@ class Trainer(object):
             for key in unrecv_res:
                 self._failed_actors.add(key)
 
-        score_rollouts = numpy.mean(numpy.array(score_rollouts), axis=0)
+        n = numpy.shape(score_rollouts)[0]
+        score1_rollouts = numpy.mean(numpy.array(score_rollouts), axis=0)
+        score2_rollouts = numpy.mean(numpy.array(score_rollouts) * numpy.array(score_rollouts), axis=0)
+        var_rollouts = numpy.sqrt(numpy.clip(score2_rollouts - score1_rollouts * score1_rollouts, 0.0, 1.0e+10) / n)
+
         step_rollouts = numpy.mean(numpy.array(step_rollouts), axis=0)
         whts = numpy.mean(whts)
-        return whts, score_rollouts, step_rollouts
+        return whts, score1_rollouts, step_rollouts, var_rollouts
 
     def save(self, filename):
         self._evolution_handler.save(filename)
@@ -219,10 +223,10 @@ if __name__=='__main__':
     trainer = Trainer(config_module_name)
 
     #initial_test
-    wht, scores, steps = trainer.eval()
+    wht, scores, steps, var = trainer.eval()
     localtime = time.asctime(time.localtime(time.time()))
-    logger.write("%s\tTest_Record\tCurrent_Iteration:%5d\tWeighted_Score:%f\tRollout_Score:%s\tRollout_Step:%s\n"%
-	    (localtime, 0, wht, ",".join(map(str, scores)), ",".join(map(str, steps))))
+    logger.write("%s\tTest_Record\tCurrent_Iteration:%5d\tWeighted_Score:%f\tRollout_Score:%s\tRollout_Step:%s\tRollout_Var:%s\n"%
+            (localtime, 1, wht, ",".join(map(str, scores)), ",".join(map(str, steps)), ",".join(map(str, var))))
 
     for iteration in range(config.max_iter):
         top_5_score, score_rollouts, step_rollouts, norm = trainer.evolve(iteration)
@@ -237,7 +241,7 @@ if __name__=='__main__':
                 (localtime, iteration + 1, avg_score, score_rollouts, step_rollouts, norm, top_5_score))
         logger.flush()
         if((iteration + 1) % config.test_iter == 0):
-            wht, scores, steps = trainer.eval()
-            logger.write("%s\tTest_Record\tCurrent_Iteration:%5d\tWeighted_Score:%f\tRollout_Score:%s\tRollout_Step:%s\n"%
-                    (localtime, iteration + 1, wht, ",".join(map(str, scores)), ",".join(map(str, steps))))
+            wht, scores, steps, var = trainer.eval()
+            logger.write("%s\tTest_Record\tCurrent_Iteration:%5d\tWeighted_Score:%f\tRollout_Score:%s\tRollout_Step:%s\tRollout_Var:%s\n"%
+                    (localtime, iteration + 1, wht, ",".join(map(str, scores)), ",".join(map(str, steps)), ",".join(map(str, var))))
     logger.close()
