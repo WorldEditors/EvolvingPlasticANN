@@ -48,7 +48,7 @@ task_sub_iterations = 4
 inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (1.0, "TEST", True)]
 
 #The task pattern are kept still for that much steps
-pattern_renew = 2
+pattern_renew = 4
 pattern_retain_iterations = 1
 
 #Select the inner-loop type, for PRNN / RNN / LSTM / EPMLP select "forward", for ES-MAML select "policy_gradient_continuous"
@@ -75,11 +75,11 @@ def train_patterns(n_step=0):
         return resample_maze15(n=pattern_renew)
         #return resample_maze9(n=pattern_renew)
     elif(n_step < 8000):
-        return resample_maze15(n=pattern_renew * 2)
-        #return resample_maze9(n=pattern_renew * 4)
+        return resample_maze15(n=pattern_renew + 2)
+        #return resample_maze9(n=pattern_renew + 2)
     else:
-        return resample_maze15(n=pattern_renew * 2)
-        #return resample_maze9(n=pattern_renew * 4)
+        return resample_maze15(n=pattern_renew + 4)
+        #return resample_maze9(n=pattern_renew + 4)
 
 #Sampled Tasks for meta-testing
 def valid_patterns(pattern_number=1024):
