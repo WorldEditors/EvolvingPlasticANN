@@ -133,7 +133,7 @@ class RemoteEvaluator(object):
         print("Current Parameter Number: %d, parameters: %s" % (len(para_vec), self._nn_shape))
         self._evolution_handler.load(config.test_load_model)
 
-        parl.connect(config.server)
+        parl.connect(config.server, distributed_files=['./epann/*.py', './envs/*.py'])
         self._evaluators = [Evaluator(config_file) for _ in range(self._actor_number)]
         self._pattern_retain_iterations = config.pattern_retain_iterations
         self._max_wait_time = 60
