@@ -38,8 +38,7 @@ model = ModelPRNNAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, 
 #load_model = root + "demo/models/model.maze15_prnn64_aftermod.dat"
 
 #Address for xparl servers, do "xparl start " in your server
-#server = "localhost:8010"
-server = "10.216.186.16:8010"
+server = "localhost:8010"
 
 #True Batch size = Actor_number * batch_size
 actor_number = 380
