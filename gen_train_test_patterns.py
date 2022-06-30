@@ -3,12 +3,12 @@ import numpy
 import pickle
 import sys
 
-#from envs.env_maze import MazeTask
-#from envs.env_maze import gen_task as gen_maze
-from envs.env_ant import AntTask
-from envs.env_ant import gen_task as gen_ant
-from envs.env_humanoid import HumanoidTask
-from envs.env_humanoid import gen_task as gen_humanoid
+from envs.env_maze import MazeTask
+from envs.env_maze import gen_task as gen_maze
+#from envs.env_ant import AntTask
+#from envs.env_ant import gen_task as gen_ant
+#from envs.env_humanoid import HumanoidTask
+#from envs.env_humanoid import gen_task as gen_humanoid
 
 def dump_mazes(pattern_number, cell_scale, file_name):
     handle = open(file_name, "wb")
@@ -29,7 +29,7 @@ def import_mazes(n=16, cell_scale=11, file_name=None, crowd_ratio=None):
         else:
             return [gen_single(cell_scale=cell_scale) for _ in range(n)]
     else:
-        patterns = load_pattern(file_name)
+        patterns = load_mazes(file_name)
         size = len(patterns)
         if(size < n):
             return patterns
@@ -42,13 +42,13 @@ def import_mazes(n=16, cell_scale=11, file_name=None, crowd_ratio=None):
             return ret
 
 def resample_maze21(n):
-    return gen_maze(n=n, cell_scale=21, crowd_ratio=0.35)
+    return [gen_maze(cell_scale=21, crowd_ratio=0.35) for _ in range(n)]
 
 def resample_maze15(n):
-    return gen_maze(n=n, cell_scale=15, crowd_ratio=0.35)
+    return [gen_maze(cell_scale=15, crowd_ratio=0.35) for _ in range(n)]
 
 def resample_maze9(n):
-    return gen_maze(n=n, cell_scale=9, crowd_ratio=0.30)
+    return [gen_maze(cell_scale=9, crowd_ratio=0.30) for _ in range(n)]
 
 def get_ant(task_type="TRAIN", id=0):
     if(task_type == "TRAIN"):

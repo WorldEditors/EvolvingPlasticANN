@@ -15,7 +15,7 @@ def gen_task(task_type):
     return ant_env.sample_task(task_type=task_type)
 
 
-class AntTask(object):
+class HumanoidTask(object):
     def __init__(self):  # Can set goal to test adaptation.
         self._ant_env = gym.make("meta-humanoid-v0")
         self._frame_skip = 2

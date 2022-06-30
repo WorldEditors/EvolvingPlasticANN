@@ -6,11 +6,11 @@ import numpy
 from numpy import random
 from copy import deepcopy
 import gym
-import metagym.metamaze
+import metagym
 from metagym.metamaze.envs.maze_gen import TaskConfig
 from epann.utils import categorical
 
-maze_env = gym.make("meta-maze-2D-v0", enable_render=False)
+maze_env = metagym.metamaze.MetaMaze2D(enable_render=False, view_grid=1, max_steps=200)
 
 def gen_task(cell_scale=11, crowd_ratio=0.35):
     return maze_env.sample_task(cell_scale=cell_scale, allow_loops=True, crowd_ratio=crowd_ratio, step_reward=-0.01, goal_reward=1.0)._asdict()
@@ -19,7 +19,7 @@ T_Pi = 6.2831852
 
 class MazeTask(object):
     def __init__(self):  # Can set goal to test adaptation.
-        self._maze_env = gym.make("meta-maze-2D-v0", max_steps=200, enable_render=False)
+        self._maze_env = metagym.metamaze.MetaMaze2D(enable_render=False, view_grid=1, max_steps=200)
 
     def reset(self, pattern, eps_type):
         task = TaskConfig._make(pattern.values())
