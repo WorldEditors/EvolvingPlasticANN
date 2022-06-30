@@ -16,18 +16,18 @@ from models_zoo import ModelPFCPreMod, ModelPFCAfterMod, ModelPFCNoMod
 from gen_train_test_patterns import resample_maze9, resample_maze15, resample_maze21, gen_patterns
 
 root = "./results"
-directory = root + "/workspace_maze_l_lstm/"
+directory = root + "/workspace_maze_l_decprnn/"
 
 # Model Structure for EPRNN
 #model = ModelFCBase2(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
-model = ModelLSTMBase1(input_shape=(15,), output_shape=(5,), hidden_size=64, extra_hidden_size=64, output_activation="none", init_scale=0.05)
+#model = ModelLSTMBase1(input_shape=(15,), output_shape=(4,), hidden_size=64, extra_hidden_size=64, output_activation="softmax", init_scale=0.05)
 #model = ModelRNNBase1(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
 
 #model = ModelPFCNoMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 #model = ModelPFCPreMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 #model = ModelPFCAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 
-#model = ModelPRNNNoMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+model = ModelPRNNNoMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 #model = ModelPRNNPreMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 # Hebbian-Type: 1. alpha ABCD; 2. Eligibility Traces; 3. Decomposed Plasticity; 4. Evolving & Merging
 #model = ModelPRNNAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
@@ -35,11 +35,11 @@ model = ModelLSTMBase1(input_shape=(15,), output_shape=(5,), hidden_size=64, ext
 # Refer to config_SeqPred_task.py for other configurations
 
 #If no load_model is specified, the model is random initialized
-load_model = "./models/maze21_l_lstm.dat"
+load_model = "./models/maze21_l_decprnn.dat"
 
 #Address for xparl servers, do "xparl start " in your server
-server = "localhost:8010"
-#server = "10.216.186.16:8010"
+#server = "localhost:8010"
+server = "10.216.186.20:8010"
 
 #True Batch size = Actor_number * batch_size
 actor_number = 380
@@ -78,11 +78,11 @@ def train_patterns(n_step=0):
         return resample_maze21(n=pattern_renew)
         #return resample_maze9(n=pattern_renew)
     elif(n_step < -8000):
-        return resample_maze21(n=pattern_renew + 2)
-        #return resample_maze9(n=pattern_renew * 4)
+        return resample_maze21(n=pattern_renew * 2)
+        #return resample_maze9(n=pattern_renew * 2)
     else:
         return resample_maze21(n=pattern_renew * 4)
-        #return resample_maze9(n=pattern_renew * 2)
+        #return resample_maze9(n=pattern_renew * 4)
 
 #Sampled Tasks for meta-testing
 def valid_patterns(pattern_number=1024):

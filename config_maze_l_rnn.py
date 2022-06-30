@@ -13,7 +13,7 @@ from epann.utils import categorical
 from models_zoo import ModelRNNBase1, ModelLSTMBase1, ModelFCBase2
 from models_zoo import ModelPRNNPreMod, ModelPRNNAfterMod, ModelPRNNNoMod
 from models_zoo import ModelPFCPreMod, ModelPFCAfterMod, ModelPFCNoMod
-from gen_train_test_patterns import resample_maze9, resample_maze15, gen_patterns
+from gen_train_test_patterns import resample_maze9, resample_maze15, resample_maze21, gen_patterns
 
 root = "./results"
 directory = root + "/workspace_maze_l_rnn/"
@@ -35,7 +35,7 @@ model = ModelRNNBase1(input_shape=(15,), output_shape=(5,), hidden_size=64, outp
 # Refer to config_SeqPred_task.py for other configurations
 
 #If no load_model is specified, the model is random initialized
-#load_model = root + "demo/models/model.maze15_prnn64_aftermod.dat"
+load_model = "./models/maze21_l_rnn.dat"
 
 #Address for xparl servers, do "xparl start " in your server
 #server = "localhost:8010"
@@ -45,9 +45,10 @@ server = "10.216.186.20:8010"
 actor_number = 380
 batch_size = 1
 task_sub_iterations = 1
-inner_rollouts = [(0.0, "TRAIN", True), (0.06, "TRAIN", True), (0.08, "TRAIN", True),
-        (0.1, "TRAIN", True), (0.2, "TRAIN", True), (0.3, "TRAIN", True),
-        (0.4, "TRAIN", True), (0.6, "TRAIN", True), (0.8, "TEST", True)
+
+inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (0.16, "TEST", True),
+        (0.22, "TEST", True), (0.36, "TEST", True), (0.64, "TEST", True),
+        (0.8, "TEST", True), (1.0, "TEST", True)
         ]
 
 #The task pattern are kept still for that much steps
@@ -61,7 +62,7 @@ ent_factor = 1.0e-6
 evolution_pool_size = 360
 evolution_topk_size = 180
 # CMA-ES initial noise variance
-evolution_step_size = 0.01
+evolution_step_size = 0.005
 # CMA-ES hyper-parameter
 evolution_lr = 0.02
 
@@ -74,19 +75,19 @@ test_iter = 100
 
 #Sampled Tasks for meta-training
 def train_patterns(n_step=0):
-    if(n_step < 4000):
-        return resample_maze15(n=pattern_renew)
+    if(n_step < -4000):
+        return resample_maze21(n=pattern_renew)
         #return resample_maze9(n=pattern_renew)
-    elif(n_step < 8000):
-        return resample_maze15(n=pattern_renew + 2)
-        #return resample_maze9(n=pattern_renew * 4)
-    else:
-        return resample_maze15(n=pattern_renew + 4)
+    elif(n_step < -8000):
+        return resample_maze21(n=pattern_renew * 2)
         #return resample_maze9(n=pattern_renew * 2)
+    else:
+        return resample_maze21(n=pattern_renew * 4)
+        #return resample_maze9(n=pattern_renew * 4)
 
 #Sampled Tasks for meta-testing
-def valid_patterns(pattern_number=360):
-    return gen_patterns(n=360, file_name="./demo/tasks/360_maze15.dat")
+def valid_patterns(pattern_number=1024):
+    return gen_patterns(n=1024, file_name="./demo/tasks/1024_maze21.dat")
 
 def game():
     return MazeTask()
