@@ -16,7 +16,7 @@ from models_zoo import ModelPFCPreMod, ModelPFCAfterMod, ModelPFCNoMod
 from gen_train_test_patterns import resample_maze9, resample_maze15, resample_maze21, import_mazes
 
 root = "./results"
-directory = root + "/workspace_maze_decprnn_postdn/"
+directory = root + "/workspace_maze_decprnn_postdn_2/"
 
 # Model Structure for EPRNN
 #model = ModelFCBase2(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
