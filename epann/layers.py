@@ -460,7 +460,6 @@ class PlasticFC(Layers):
         else:
             self.heb(pre_syn=self.pre_syn, post_syn=self.post_syn, modulator=kw_args["modulator"])
         self.ready_to_learn = False
-        
 
 class PlasticUnFC(Layers):
     def __init__(self, **kw_args):

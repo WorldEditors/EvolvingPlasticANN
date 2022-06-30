@@ -12,7 +12,7 @@ from epann.utils import categorical
 
 maze_env = gym.make("meta-maze-2D-v0", enable_render=False)
 
-def gen_pattern(cell_scale=11, crowd_ratio=0.35):
+def gen_task(cell_scale=11, crowd_ratio=0.35):
     return maze_env.sample_task(cell_scale=cell_scale, allow_loops=True, crowd_ratio=crowd_ratio, step_reward=-0.01, goal_reward=1.0)._asdict()
 
 T_Pi = 6.2831852
