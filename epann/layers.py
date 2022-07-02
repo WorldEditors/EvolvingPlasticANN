@@ -320,13 +320,13 @@ class Hebbian2(Memory):
             if(mod.shape==(self.output_shape[0], )):
                 pre_unit = numpy.ones_like(pre_syn)
                 assert mod.shape == post_syn.shape, "the shape of modulator and post synaptic signals do not match"
-                self.memory += numpy.outer(mod, pre_unit) * n_whts
+                self.memory += 0.05 * numpy.outer(mod, pre_unit) * n_whts
             elif(numpy.product(mod.shape)==1):
-                self.memory += kw_args["modulator"] * n_whts
+                self.memory += 0.05 * kw_args["modulator"] * n_whts
             else:
                 raise Exception("modulator shape illegal")
         else:
-            self.memory += n_whts 
+            self.memory += 0.05 * n_whts 
         self.evo_path(n_whts)
 
         return numpy.copy(self.memory)
@@ -381,9 +381,9 @@ class Hebbian3(Memory):
             mod = kw_args["modulator"]
             if(mod.shape==(self.output_shape[0], )):
                 f_mod = numpy.repeat(numpy.expand(mod, axis=1), repeats=self.d_x, axis=1)
-                self.memory += f_mod * n_whts
+                self.memory += 0.20 * f_mod * n_whts
             elif(numpy.product(mod.shape)==1):
-                self.memory += mod * n_whts
+                self.memory += 0.20 * mod * n_whts
             else:
                 raise Exception("modulator shape illegal")
         else:
