@@ -312,7 +312,9 @@ class Hebbian2(Memory):
         assert((post_syn.shape[0], pre_syn.shape[0]) == self.output_shape and len(post_syn.shape)==1 and len(pre_syn.shape)==1),\
                 "the pre-synaptic and post-synaptic dimensions do not match"
         whts = self.evo_path()
-        eta = self.parameter("\eta")
+        eta = 1.0#self.parameter("\eta") + 10.0
+        #eta = 0.50 * eta / (numpy.abs(eta) + 1) + 0.50
+        alpha = 0.2
         n_whts = eta * numpy.outer(post_syn, pre_syn) + (1 - eta) * whts
 
         if("modulator" in kw_args):
@@ -320,13 +322,13 @@ class Hebbian2(Memory):
             if(mod.shape==(self.output_shape[0], )):
                 pre_unit = numpy.ones_like(pre_syn)
                 assert mod.shape == post_syn.shape, "the shape of modulator and post synaptic signals do not match"
-                self.memory += 0.05 * numpy.outer(mod, pre_unit) * n_whts
+                self.memory += alpha * numpy.outer(mod, pre_unit) * n_whts
             elif(numpy.product(mod.shape)==1):
-                self.memory += 0.05 * kw_args["modulator"] * n_whts
+                self.memory += alpha * kw_args["modulator"] * n_whts
             else:
                 raise Exception("modulator shape illegal")
         else:
-            self.memory += 0.05 * n_whts 
+            self.memory += alpha * n_whts 
         self.evo_path(n_whts)
 
         return numpy.copy(self.memory)
