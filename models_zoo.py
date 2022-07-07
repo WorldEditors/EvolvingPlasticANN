@@ -32,17 +32,16 @@ class ModelPRNNPreMod(Models):
                 param_init_scale=self.init_scale)
         self.l2 = self.add_layer(FC, param_name_prefix="FC_1", output_shape=self.output_shape, input_shape=(self.hidden_size,), activation=self.output_activation,
                 param_init_scale=self.init_scale)
-        self.lmh = self.add_layer(FC, param_name_prefix="FC_Mh", output_shape=(1,), input_shape=self.input_shape, activation="sigmoid",
+        self.lmx = self.add_layer(FC, param_name_prefix="FC_Mh", output_shape=(2,), input_shape=self.input_shape, activation="sigmoid",
                 param_init_scale=self.init_scale)
-        self.lmx = self.add_layer(FC, param_name_prefix="FC_Mx", output_shape=(1,), input_shape=(self.hidden_size,), activation="sigmoid",
+        self.lmh = self.add_layer(FC, param_name_prefix="FC_Mx", output_shape=(2,), input_shape=(self.hidden_size,), activation="sigmoid",
                 param_init_scale=self.init_scale)
     
     def forward(self, inputs):
-        modx = self.lmh(numpy.array(inputs))
-        modh = self.lmx(self.l1.mem())
+        mod = self.lmx(numpy.array(inputs)) + self.lmh(self.l1.mem())
         outputs = self.l1(numpy.array(inputs))
         outputs = self.l2(outputs)
-        self.l1.learn(modulator={"h":modh, "x":modx})
+        self.l1.learn(modulator={"h":mod[0], "x":mod[1]})
         return outputs
 
 class ModelPRNNNoMod(Models):
