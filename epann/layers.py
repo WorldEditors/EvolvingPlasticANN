@@ -25,12 +25,15 @@ class Layers(object):
         if("activation" in kw_args):
             self._act_func = ActFunc(self.activation)
 
-    def add_parameter(self, shape, name):
+    def add_parameter(self, shape, name, is_static=False):
         self.params.add(self.param_name_prefix + "/" + name, 
-                    numpy.random.normal(size=shape, loc=0.0, scale=self.param_init_scale).astype(self.dtype))
+                    numpy.random.normal(size=shape, loc=0.0, scale=self.param_init_scale).astype(self.dtype), is_static=is_static)
 
-    def parameter(self, name):
-        return self.params.get(self.param_name_prefix + "/" + name)
+    def set_parameter(self, name, param, is_static=False):
+        self.params.set(self.param_name_prefix + "/" + name, param, is_static=is_static)
+
+    def parameter(self, name, is_static=False):
+        return self.params.get(self.param_name_prefix + "/" + name, is_static=is_static)
 
     def __call__(self, inputs=None, **kw_args):
         """
@@ -413,6 +416,7 @@ class Hebbian4(Memory):
         self.add_parameter((l,), "hash_map", is_static=True)
 
     def inherit_parameter(self, A, B, C, D):
+        from sklearn.cluster import KMeans
         assert numpy.shape(A) == self.output_shape and \
                 numpy.shape(B) == self.output_shape and \
                 numpy.shape(C) == self.output_shape and \
