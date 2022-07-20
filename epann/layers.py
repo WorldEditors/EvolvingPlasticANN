@@ -25,12 +25,15 @@ class Layers(object):
         if("activation" in kw_args):
             self._act_func = ActFunc(self.activation)
 
-    def add_parameter(self, shape, name):
+    def add_parameter(self, shape, name, is_static=False):
         self.params.add(self.param_name_prefix + "/" + name, 
-                    numpy.random.normal(size=shape, loc=0.0, scale=self.param_init_scale).astype(self.dtype))
+                    numpy.random.normal(size=shape, loc=0.0, scale=self.param_init_scale).astype(self.dtype), is_static=is_static)
 
-    def parameter(self, name):
-        return self.params.get(self.param_name_prefix + "/" + name)
+    def set_parameter(self, name, param, is_static=False):
+        self.params.set(self.param_name_prefix + "/" + name, param, is_static=is_static)
+
+    def parameter(self, name, is_static=False):
+        return self.params.get(self.param_name_prefix + "/" + name, is_static=is_static)
 
     def __call__(self, inputs=None, **kw_args):
         """
@@ -312,9 +315,9 @@ class Hebbian2(Memory):
         assert((post_syn.shape[0], pre_syn.shape[0]) == self.output_shape and len(post_syn.shape)==1 and len(pre_syn.shape)==1),\
                 "the pre-synaptic and post-synaptic dimensions do not match"
         whts = self.evo_path()
-        eta = 1.0#self.parameter("\eta") + 10.0
-        #eta = 0.50 * eta / (numpy.abs(eta) + 1) + 0.50
-        alpha = 0.2
+        eta = self.parameter("\eta") + 10.0
+        eta = 0.50 * eta / (numpy.abs(eta) + 1) + 0.50
+        alpha = 0.001
         n_whts = eta * numpy.outer(post_syn, pre_syn) + (1 - eta) * whts
 
         if("modulator" in kw_args):
@@ -329,6 +332,7 @@ class Hebbian2(Memory):
                 raise Exception("modulator shape illegal")
         else:
             self.memory += alpha * n_whts 
+        self.memory = numpy.clip(self.memory, -5.0, 5.0)
         self.evo_path(n_whts)
 
         return numpy.copy(self.memory)
@@ -402,6 +406,71 @@ class Hebbian3(Memory):
         self.p_c = numpy.outer(self.parameter("/W_Cy"), self.parameter("/W_Cx"))
         self.p_d = numpy.outer(self.parameter("/W_Dy"), self.parameter("/W_Dx"))
 
+class Hebbian4(Memory):
+    def __init__(self, **kw_args):
+        kw_args["writable"] = True
+        super(Hebbian4, self).__init__(**kw_args)
+        l = numpy.product(self.output_shape)
+
+        self.add_parameter((self.n_clusters, 4), "Cluster")
+        self.add_parameter((l,), "hash_map", is_static=True)
+
+    def inherit_parameter(self, A, B, C, D):
+        from sklearn.cluster import KMeans
+        assert numpy.shape(A) == self.output_shape and \
+                numpy.shape(B) == self.output_shape and \
+                numpy.shape(C) == self.output_shape and \
+                numpy.shape(D) == self.output_shape, "shapes of the inherited parameters do not match"
+        params_ABCD = numpy.reshape(numpy.asarray([A,B,C,D], dtype="float32"), (4, numpy.product(self.output_shape)))
+        params_ABCD = numpy.transpose(params_ABCD)
+        self.kmeans = KMeans(n_clusters=self.n_clusters, random_state=10)
+        self.kmeans.fit(params_ABCD)
+        hash_map = numpy.reshape(numpy.copy(self.kmeans.labels_), self.output_shape)
+        self.set_parameter("Cluster", self.kmeans.cluster_centers_)
+        self.set_parameter("hash_map", hash_map, is_static=True)
+
+    def prepare_parameters(self):
+        #print(self.parameter("hash_map", is_static=True))
+        self._para = self.parameter("Cluster")[self.parameter("hash_map", is_static=True)]
+        self._para_A = self._para[:, :, 0]
+        self._para_B = self._para[:, :, 1]
+        self._para_C = self._para[:, :, 2]
+        self._para_D = self._para[:, :, 3]
+
+    def forward(self, inputs=None, **kw_args):
+        if("pre_syn" not in kw_args or "post_syn" not in kw_args):
+            return numpy.copy(self.memory)
+        pre_syn = kw_args["pre_syn"]
+        post_syn = kw_args["post_syn"]
+        assert((post_syn.shape[0], pre_syn.shape[0]) == self.output_shape and len(post_syn.shape)==1 and len(pre_syn.shape)==1),\
+                "the pre-synaptic and post-synaptic dimensions do not match"
+        post_unit = numpy.ones_like(post_syn)
+        pre_unit = numpy.ones_like(pre_syn)
+        deta_whts = 0.05 * (numpy.outer(post_syn, pre_syn) * self._para_A
+                + numpy.outer(post_syn, pre_unit) * self._para_B
+                + numpy.outer(post_unit, pre_syn) * self._para_C
+                + numpy.outer(post_unit, pre_unit) * self._para_D)
+
+        if("modulator" in kw_args):
+            mod = kw_args["modulator"]
+            if(mod.shape==(self.output_shape[0], )):
+                pre_unit = numpy.ones_like(pre_syn)
+                assert mod.shape == post_syn.shape, "the shape of modulator and post synaptic signals do not match"
+                self.memory += numpy.outer(mod, pre_unit) * deta_whts
+            elif(numpy.product(mod.shape)==1):
+                self.memory += mod * deta_whts
+            else:
+                raise Exception("modulator shape illegal")
+        else:
+            self.memory += deta_whts 
+
+        return numpy.copy(self.memory)
+
+    # set value to memories
+    def reset(self, **kw_args):
+        super(Hebbian4, self).reset(**kw_args)
+        self.prepare_parameters()
+
 class PlasticFC(Layers):
     def __init__(self, **kw_args):
         if("activation" not in kw_args):
@@ -433,6 +502,15 @@ class PlasticFC(Layers):
                     initialize_settings=self.initialize_settings,
                     param_init_scale=self.param_init_scale,
                     )
+        elif(self.hebbian_type == 4):
+            n_clusters = self.output_shape[0] + self.input_shape[0]
+            self.heb = Hebbian4(params=self.params, 
+                    param_name_prefix=self.param_name_prefix + "/hebbian",
+                    output_shape=(self.output_shape[0], self.output_shape[0]),
+                    initialize_settings=self.initialize_settings,
+                    param_init_scale=self.param_init_scale,
+                    n_clusters=n_clusters)
+
         self.fc = FC(params=self.params, 
                 param_name_prefix=self.param_name_prefix + "/fc",
                 output_shape=self.output_shape, 
@@ -557,6 +635,21 @@ class PlasticRNN(Layers):
                     output_shape=(self.output_shape[0], self.input_shape[0]),
                     initialize_settings=self.initialize_settings,
                     param_init_scale=self.param_init_scale)
+        elif(self.hebbian_type == 4):
+            n_clusters_h = 2 * self.output_shape[0]
+            self.heb_h = Hebbian4(params=self.params, 
+                    param_name_prefix=self.param_name_prefix + "/hebbian_h",
+                    output_shape=(self.output_shape[0], self.output_shape[0]),
+                    initialize_settings=self.initialize_settings,
+                    param_init_scale=self.param_init_scale,
+                    n_clusters=n_clusters_h)
+            n_clusters_x = self.output_shape[0] + self.input_shape[0]
+            self.heb_x = Hebbian4(params=self.params, 
+                    param_name_prefix=self.param_name_prefix + "/hebbian_x",
+                    output_shape=(self.output_shape[0], self.input_shape[0]),
+                    initialize_settings=self.initialize_settings,
+                    param_init_scale=self.param_init_scale,
+                    n_clusters=n_clusters_x)
 
         self.mem = Memory(params=self.params, 
                 param_name_prefix=self.param_name_prefix + "/mem", 

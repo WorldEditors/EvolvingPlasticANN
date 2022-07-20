@@ -9,23 +9,23 @@ import gym
 import metagym.metalocomotion
 from epann.utils import categorical
 
-ant_env = gym.make("meta-humanoid-v0")
+humanoid_env = gym.make("meta-humanoid-v0", max_steps=5)
 
 def gen_task(task_type):
-    return ant_env.sample_task(task_type=task_type)
+    return humanoid_env.sample_task(task_type=task_type)
 
 
 class HumanoidTask(object):
     def __init__(self):  # Can set goal to test adaptation.
-        self._ant_env = gym.make("meta-humanoid-v0")
+        self._humanoid_env = gym.make("meta-humanoid-v0", max_steps=200)
         self._frame_skip = 2
         self._max_step = 500
 
     def reset(self, task, eps_type):
-        self._ant_env.set_task(task)
+        self._humanoid_env.set_task(task)
         self._score = 0.0
         self._step = 0
-        obs = self._ant_env.reset()
+        obs = self._humanoid_env.reset()
         self.eps_type = eps_type
         return obs
 
@@ -36,7 +36,7 @@ class HumanoidTask(object):
         done = False
         for _ in range(self._frame_skip):
             if not done:
-                obs, r, done, info = self._ant_env.step(action)
+                obs, r, done, info = self._humanoid_env.step(action)
                 reward += r
         done = (done or self._step >= self._max_step)
         self._score += reward
@@ -47,10 +47,10 @@ class HumanoidTask(object):
         return self._score
 
     def default_action(self):
-        return self._ant_env.action_space.sample()
+        return self._humanoid_env.action_space.sample()
 
     def random_action(self):
-        return self._ant_env.action_space.sample()
+        return self._humanoid_env.action_space.sample()
 
     def default_info(self):
         return {"reward": 0.0, "done": False, "eps_type": self.eps_type}
@@ -74,7 +74,7 @@ def obs_to_input(obs, action, info):
 
 if __name__=="__main__":
     # running random policies
-    game = AntTask()
+    game = HumanoidTask()
     tasks = gen_task("TRAIN")
     print(tasks)
     done = False
