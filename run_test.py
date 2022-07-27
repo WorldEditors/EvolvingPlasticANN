@@ -46,6 +46,7 @@ class LocalEvaluator(object):
         ent_list = []
         hidden_states = []
         connection_weights = []
+        goal_arr = []
         idx = 0
         for pattern in pattern_list:
             idx += 1
@@ -66,6 +67,7 @@ class LocalEvaluator(object):
             step_rollouts_list.append(step_rollouts)
             ent_list.append(ext_info["entropy"])
             uncertainty_list.append(ext_info["certainty"])
+            goal_arr.append(ext_info["goal_arr"])
             if("hidden_states" in ext_info):
                 hidden_states.append(ext_info["hidden_states"])
             if("connection_weights" in ext_info):
@@ -73,7 +75,7 @@ class LocalEvaluator(object):
 
             self._game.reset(pattern, "TEST")
             optimal_steps.append(self._game.optimal_steps())
-        return score_rollouts_list,  uncertainty_list,  ent_list, hidden_states, connection_weights
+        return score_rollouts_list,  uncertainty_list, goal_arr, ent_list, hidden_states, connection_weights
 
 @parl.remote_class(wait=False)
 class Evaluator(object):
@@ -92,6 +94,7 @@ class Evaluator(object):
         weighted_scores = []
         optimal_steps = []
         uncertainty_list = []
+        goal_arr = []
         ent_list = []
         idx = 0
         for pattern in pattern_list:
@@ -110,12 +113,13 @@ class Evaluator(object):
             score_rollouts_list.append(score_rollouts)
             step_rollouts_list.append(step_rollouts)
             ent_list.append(ext_info["entropy"])
+            goal_arr.append(ext_info["goal_arr"])
             uncertainty_list.append(ext_info["certainty"])
 
             self._game.reset(pattern, "TEST")
             optimal_steps.append(self._game.optimal_steps())
 
-        return score_rollouts_list,  uncertainty_list, ent_list
+        return score_rollouts_list, uncertainty_list, goal_arr, ent_list
 
 class RemoteEvaluator(object):
     def __init__(self, config_file):
@@ -153,6 +157,7 @@ class RemoteEvaluator(object):
         weights = self._evolution_handler._base_weights
         score_rollouts = []
         uncert_lists = []
+        goal_arrs = []
         ent_lists = []
         deta = (len(test_pattern_lst)  - 1) // (self._actor_number - len(self._failed_actors)) + 1
         i = 0
@@ -177,10 +182,11 @@ class RemoteEvaluator(object):
             for _ in range(len(unrecv_res)):
                 idx = unrecv_res.pop()
                 try:
-                    score_rollout, uncert_list, ent_list = tasks[idx].get_nowait()
+                    score_rollout, uncert_list, goal_arr, ent_list = tasks[idx].get_nowait()
                     score_rollouts.extend(score_rollout)
                     uncert_lists.extend(uncert_list)
                     ent_lists.extend(ent_list)
+                    goal_arrs.extend(goal_arr)
                 except Exception:
                     unrecv_res.add(idx)
             wait_time += 1
@@ -190,8 +196,10 @@ class RemoteEvaluator(object):
             print("Out of time for servers id: %s" % unrecv_res)
             for key in unrecv_res:
                 self._failed_actors.add(key)
-        print("uncert_lists", numpy.mean(uncert_lists, axis=0))
-        print("ent_lists", numpy.mean(ent_lists, axis=0))
+        formalize = lambda arr:" ".join(map(str, arr.tolist()))
+        print("uncert_lists", formalize(numpy.mean(uncert_lists, axis=0)))
+        print("ent_lists", formalize(numpy.mean(ent_lists, axis=0)))
+        print("goal_arrs", formalize(numpy.mean(goal_arrs, axis=0)))
         return get_mean_std(score_rollouts)
 
 def local_eval(config):
@@ -215,12 +223,13 @@ def local_eval(config):
 
     weights = evolution_handler._base_weights
     # hidden_states & connection_weights: n_pattern * n_rollout * n_step
-    scores, uncert_lists, ent_lists, hidden_states, connection_weights = evaluator.cal_score(
+    scores, uncert_lists, goal_arrs, ent_lists, hidden_states, connection_weights = evaluator.cal_score(
             weights,
             nn_shape, evolution_handler.get_static_weights,
             tst_pattern_lst)
     print("uncert_lists", numpy.mean(uncert_lists, axis=0))
     print("entropy_lists", numpy.mean(ent_lists, axis=0))
+    print("goal_arrs", numpy.mean(goal_arrs, axis=0))
 
     # Get the shape_list
     h_weights = []
