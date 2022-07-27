@@ -32,8 +32,11 @@ class MazeTask(object):
     def step(self, action):
         obs, r, done, info = self._maze_env.step(action)
         obs = numpy.ravel(obs)
+        goal = False
+        if(r > 0 and done):
+            goal = True
         self._score += r
-        return done, obs, {"reward": r, "done": done, "eps_type": self.eps_type}
+        return done, obs, {"reward": r, "done": done, "goal":goal, "eps_type": self.eps_type}
 
     @property
     def score(self):

@@ -23,6 +23,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
     ext_info = dict()
     if(is_meta_test):
         ext_info["certainty"] = []
+        ext_info["goal_arr"] = []
         ext_info["entropy"] = []
     if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
         ext_info["connection_weights"] = []
@@ -46,6 +47,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         steps = 1
         decisive_steps = 0
         avg_ent = 0
+        is_goal = 0
         while not done:
             # Only do hebbian when train episode
             output = learner(inputs)
@@ -64,6 +66,8 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
                 decisive_steps += 1
             done, obs, info = game.step(action)
             info["test"] = is_test
+            if(info["goal"]):
+                is_goal = 1
             inputs, _ = config.obs_to_input(obs, action, info)
             if("entropy" in act_info):
                 avg_ent += act_info["entropy"]
@@ -79,6 +83,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         if(is_meta_test):
             ext_info["certainty"].append(decisive_steps / (steps - 1))
             ext_info["entropy"].append(avg_ent / (steps - 1))
+            ext_info["goal_arr"].append(is_goal)
         weights_all += rollout_weight
         rollout_num += 1
     return score / weights_all, score_rollouts, step_rollouts, ext_info
