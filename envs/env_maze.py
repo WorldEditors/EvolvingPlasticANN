@@ -91,7 +91,11 @@ class MazeTask(object):
 #Transform from raw output to actions, use is_tra if it is different in meta-training-train and meta-training-test
 def output_to_action(output_list, info):
     act_info = dict()
-    if(random.random() < 0.5 * numpy.tanh(output_list[-1]) + 0.5):
+    if(info["rollout"] > 1):
+        p = 0.5 * numpy.tanh(output_list[-1]) + 0.5
+    else:
+        p = 0.50
+    if(random.random() < p):
         d_act = numpy.argmax(output_list[:4])
         act_info["entropy"] = 0.0
         act_info["argmax"] = True
