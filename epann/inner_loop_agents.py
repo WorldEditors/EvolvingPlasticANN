@@ -37,6 +37,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         action = game.default_action()
         info = game.default_info()
         info["test"] = is_test
+        info["rollout"] = rollout_idx
 
         if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
             ext_info["connection_weights"].append([])
@@ -65,6 +66,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             if("argmax" in act_info and act_info["argmax"]):
                 decisive_steps += 1
             done, obs, info = game.step(action)
+            info["rollout"] = rollout_idx
             info["test"] = is_test
             if(info["goal"]):
                 is_goal = 1
