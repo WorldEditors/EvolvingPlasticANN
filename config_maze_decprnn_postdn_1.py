@@ -16,7 +16,8 @@ from models_zoo import ModelPFCPreMod, ModelPFCAfterMod, ModelPFCNoMod
 from gen_train_test_patterns import resample_maze9, resample_maze15, resample_maze21, import_mazes
 
 root = "./results"
-directory = root + "/workspace_maze9x9_decprnn_postdn_1/"
+directory = root + "/workspace_maze21x21_decprnn_postdn_1/"
+directory_load = root + "/workspace_maze21x21_decprnn_postdn_1/"
 
 # Model Structure for EPRNN
 #model = ModelFCBase2(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
@@ -37,14 +38,14 @@ model = ModelPRNNAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, 
 #If no load_model is specified, the model is random initialized
 #load_model = "./results/workspace_maze_l_decprnn_cdn/models/model.000500.dat"
 #load_model = "./models/maze21_l_decprnn_cdn.dat"
-#load_model = directory + "/models/model.001500.dat"
+load_model = directory_load + "models/model.004000.dat"
 
 #Address for xparl servers, do "xparl start " in your server
 server = "localhost:8010"
 #server = "10.216.186.16:8010"
 
 #True Batch size = Actor_number * batch_size
-actor_number = 380
+actor_number = 80
 batch_size = 1
 task_sub_iterations = 1
 inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (0.16, "TEST", True),
@@ -85,13 +86,20 @@ def train_patterns(n_step=0):
         #return resample_maze15(n=pattern_renew + 2)
         #return resample_maze9(n=pattern_renew * 4)
     #else:
-    return resample_maze9(n=pattern_renew)
+    return resample_maze21(n=pattern_renew)
     #return resample_maze15(n=pattern_renew * 4)
     #return resample_maze9(n=pattern_renew * 2)
 
 #Sampled Tasks for meta-testing
 def valid_patterns(pattern_number=1024):
-    return import_mazes(n=1024, file_name="./demo/tasks/1024_maze9.dat")
+    return import_mazes(n=1024, file_name="./demo/tasks/1024_maze21.dat")
 
 def game():
     return MazeTask()
+
+def test_patterns():
+    return import_mazes(n=2048, file_name="./demo/tasks/3_demo.dat")
+    #return import_mazes(n=2048, file_name="./demo/tasks/2048_maze21.dat")
+
+#test_load_model = root + "/workspace_maze21x21_decprnn_postdn_2/models/model.007000.dat"
+test_load_model = root + "/workspace_maze21x21_decprnn_postdn_1/models/model.015000.dat"
