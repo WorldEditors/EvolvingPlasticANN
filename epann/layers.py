@@ -112,6 +112,11 @@ class Memory(Layers):
             raise Exception("illegal intialize_settings, only P/R/C is permitted")
         self.memory = self.memory.astype(self.dtype) 
 
+    def decay_over_boundary(self, ratio, box):
+        boundary = numpy.clip(self.memory, box[0], box[1])
+        residue = self.memory - boundary
+        self.memory -= ratio * residue
+
 class FIFOMemory(Layers):
     """
     Read and writable memory with trainable initial parameters
@@ -394,6 +399,7 @@ class Hebbian3(Memory):
                 raise Exception("modulator shape illegal")
         else:
             self.memory += n_whts 
+        #self.decay_over_boundary(0.05, [-5.0, 5.0])
 
         return numpy.copy(self.memory)
 

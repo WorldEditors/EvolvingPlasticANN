@@ -21,6 +21,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
     step_rollouts = []
     rollout_num = 0
     ext_info = dict()
+    ext_info["exploration"] = []
     if(is_meta_test):
         ext_info["certainty"] = []
         ext_info["goal_arr"] = []
@@ -82,6 +83,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         score += (game.score - additional_wht) * rollout_weight
         score_rollouts.append(game.score)
         step_rollouts.append(steps)
+        ext_info["exploration"].append(game.coverage_rate())
         if(is_meta_test):
             ext_info["certainty"].append(decisive_steps / (steps - 1))
             ext_info["entropy"].append(avg_ent / (steps - 1))

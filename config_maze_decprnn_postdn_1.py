@@ -7,7 +7,7 @@ import random
 import numpy
 from envs.env_maze import  MazeTask
 from envs.env_maze import gen_task
-from envs.env_maze import output_to_action
+from envs.env_maze import output_to_action_offpolicy as output_to_action
 from envs.env_maze import obs_to_input
 from epann.utils import categorical
 from models_zoo import ModelRNNBase1, ModelLSTMBase1, ModelFCBase2
@@ -95,11 +95,11 @@ def valid_patterns(pattern_number=1024):
     return import_mazes(n=1024, file_name="./demo/tasks/1024_maze21.dat")
 
 def game():
-    return MazeTask()
+    return MazeTask(need_guide=True, guide_eps=1.0)
 
 def test_patterns():
-    return import_mazes(n=2048, file_name="./demo/tasks/3_demo.dat")
-    #return import_mazes(n=2048, file_name="./demo/tasks/2048_maze21.dat")
+    #return import_mazes(n=2048, file_name="./demo/tasks/3_demo.dat")
+    return import_mazes(n=2048, file_name="./demo/tasks/2048_maze15.dat")
 
 #test_load_model = root + "/workspace_maze21x21_decprnn_postdn_2/models/model.007000.dat"
-test_load_model = root + "/workspace_maze21x21_decprnn_postdn_1/models/model.015000.dat"
+test_load_model = root + "/workspace_maze15x15_decprnn_postdn_1/models/model.015000.dat"

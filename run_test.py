@@ -40,6 +40,7 @@ class LocalEvaluator(object):
     def cal_score(self, weights_x, shape, static_weights, pattern_list):
         score_rollouts_list = []
         step_rollouts_list = []
+        exploration_list = []
         weighted_scores = []
         optimal_steps = []
         uncertainty_list = []
@@ -65,6 +66,7 @@ class LocalEvaluator(object):
             weighted_scores.append(weighted_score)
             score_rollouts_list.append(score_rollouts)
             step_rollouts_list.append(step_rollouts)
+            exploration_list.append(ext_info["exploration"])
             ent_list.append(ext_info["entropy"])
             uncertainty_list.append(ext_info["certainty"])
             goal_arr.append(ext_info["goal_arr"])
@@ -75,7 +77,7 @@ class LocalEvaluator(object):
 
             self._game.reset(pattern, "TEST")
             optimal_steps.append(self._game.optimal_steps())
-        return score_rollouts_list,  uncertainty_list, goal_arr, ent_list, hidden_states, connection_weights
+        return score_rollouts_list,  uncertainty_list, goal_arr, ent_list, exploration_list, hidden_states, connection_weights
 
 @parl.remote_class(wait=False)
 class Evaluator(object):
@@ -223,13 +225,14 @@ def local_eval(config):
 
     weights = evolution_handler._base_weights
     # hidden_states & connection_weights: n_pattern * n_rollout * n_step
-    scores, uncert_lists, goal_arrs, ent_lists, hidden_states, connection_weights = evaluator.cal_score(
+    scores, uncert_lists, goal_arrs, ent_lists, exploration_lists, hidden_states, connection_weights = evaluator.cal_score(
             weights,
             nn_shape, evolution_handler.get_static_weights,
             tst_pattern_lst)
     print("uncert_lists", numpy.mean(uncert_lists, axis=0))
     print("entropy_lists", numpy.mean(ent_lists, axis=0))
     print("goal_arrs", numpy.mean(goal_arrs, axis=0))
+    print("exploration", numpy.mean(exploration_lists, axis=0))
 
     # Get the shape_list
     h_weights = []
