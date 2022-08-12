@@ -23,13 +23,15 @@ class MazeTask(object):
         self._need_guide = need_guide
         self._guide_eps = guide_eps
 
+    def task_reset(self):
+        self.coverage = dict()
+
     def reset(self, pattern, eps_type):
         task = TaskConfig._make(pattern.values())
         self._maze_env.set_task(task)
         self._score = 0.0
         obs = self._maze_env.reset()
         self.eps_type = eps_type
-        self.coverage = dict()
         if(self._need_guide):
             self.planning()
         return numpy.ravel(obs)

@@ -31,6 +31,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
     if(is_meta_test and ("mem" in learner.l1.__dict__ or "mem_h" in  learner.l1.__dict__)):
         ext_info["hidden_states"] = []
     rollout_idx = 0
+    game.task_reset()
     for rollout_weight, eps_type, is_test in config.inner_rollouts:
         rollout_idx += 1
         done = False
