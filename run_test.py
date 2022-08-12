@@ -94,6 +94,7 @@ class Evaluator(object):
         score_rollouts_list = []
         step_rollouts_list = []
         weighted_scores = []
+        exploration_list = []
         optimal_steps = []
         uncertainty_list = []
         goal_arr = []
@@ -113,6 +114,7 @@ class Evaluator(object):
                 raise Exception("No such inner loop type: %s"%self._adapt_type)
             weighted_scores.append(weighted_score)
             score_rollouts_list.append(score_rollouts)
+            exploration_list.append(ext_info["exploration"])
             step_rollouts_list.append(step_rollouts)
             ent_list.append(ext_info["entropy"])
             goal_arr.append(ext_info["goal_arr"])
@@ -121,7 +123,7 @@ class Evaluator(object):
             self._game.reset(pattern, "TEST")
             optimal_steps.append(self._game.optimal_steps())
 
-        return score_rollouts_list, uncertainty_list, goal_arr, ent_list
+        return score_rollouts_list, uncertainty_list, goal_arr, ent_list, exploration_list
 
 class RemoteEvaluator(object):
     def __init__(self, config_file):
@@ -160,6 +162,7 @@ class RemoteEvaluator(object):
         score_rollouts = []
         uncert_lists = []
         goal_arrs = []
+        explorations = []
         ent_lists = []
         deta = (len(test_pattern_lst)  - 1) // (self._actor_number - len(self._failed_actors)) + 1
         i = 0
@@ -184,11 +187,12 @@ class RemoteEvaluator(object):
             for _ in range(len(unrecv_res)):
                 idx = unrecv_res.pop()
                 try:
-                    score_rollout, uncert_list, goal_arr, ent_list = tasks[idx].get_nowait()
+                    score_rollout, uncert_list, goal_arr, ent_list, exploration_list = tasks[idx].get_nowait()
                     score_rollouts.extend(score_rollout)
                     uncert_lists.extend(uncert_list)
                     ent_lists.extend(ent_list)
                     goal_arrs.extend(goal_arr)
+                    explorations.extend(exploration_list)
                 except Exception:
                     unrecv_res.add(idx)
             wait_time += 1
@@ -202,6 +206,7 @@ class RemoteEvaluator(object):
         print("uncert_lists", formalize(numpy.mean(uncert_lists, axis=0)))
         print("ent_lists", formalize(numpy.mean(ent_lists, axis=0)))
         print("goal_arrs", formalize(numpy.mean(goal_arrs, axis=0)))
+        print("explorations", formalize(numpy.mean(explorations, axis=0)))
         return get_mean_std(score_rollouts)
 
 def local_eval(config):

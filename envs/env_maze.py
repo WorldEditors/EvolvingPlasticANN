@@ -177,7 +177,7 @@ def output_to_action(output_list, info):
 #Transform from raw output to actions, use is_tra if it is different in meta-training-train and meta-training-test
 def output_to_action_offpolicy(output_list, info):
     act_info = dict()
-    if(info["rollout"] <= 4):
+    if(info["rollout"] <= 1):
         d_act = info["guide"]
         act_info["entropy"] = 0.0
         act_info["argmax"] = True
