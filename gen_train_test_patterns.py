@@ -12,7 +12,7 @@ from envs.env_maze import gen_task as gen_maze
 
 def dump_mazes(pattern_number, cell_scale, file_name):
     handle = open(file_name, "wb")
-    value = [gen_single(cell_scale=cell_scale, crowd_ratio=0.35) for _ in range(pattern_number)]
+    value = [gen_single(cell_scale=cell_scale, crowd_ratio=0.0) for _ in range(pattern_number)]
     pickle.dump(value, handle)
     handle.close()
 
@@ -40,6 +40,10 @@ def import_mazes(n=16, cell_scale=11, file_name=None, crowd_ratio=None):
             for i in idxes[:n]:
                 ret.append(patterns[idxes[i]])
             return ret
+
+def resample_maze21_rand(n):
+    c_ratio = random.random(0.0, 0.50)
+    return [gen_maze(cell_scale=21, crowd_ratio=c_ratio) for _ in range(n)]
 
 def resample_maze21(n):
     return [gen_maze(cell_scale=21, crowd_ratio=0.35) for _ in range(n)]

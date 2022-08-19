@@ -16,6 +16,7 @@ def gen_task(cell_scale=11, crowd_ratio=0.35):
     return maze_env.sample_task(cell_scale=cell_scale, allow_loops=True, crowd_ratio=crowd_ratio, step_reward=-0.01, goal_reward=1.0)._asdict()
 
 T_Pi = 6.2831852
+lower_b = [0.20 ** i for i in range(50)]
 
 class MazeTask(object):
     def __init__(self, need_guide=False, guide_eps=0.20):  # Can set goal to test adaptation.
@@ -165,6 +166,21 @@ def output_to_action(output_list, info):
     act_info = dict()
     p = (0.5 * numpy.tanh(output_list[-1]) + 0.5)
     if(random.random() < p):
+        d_act = numpy.argmax(output_list[:4])
+        act_info["entropy"] = 0.0
+        act_info["argmax"] = True
+    else:
+        action_prob = numpy.exp(output_list[:4])
+        action_prob *= 1.0 / numpy.sum(action_prob)
+        d_act = categorical(action_prob)
+        act_info["entropy"] = numpy.sum(-action_prob * numpy.log(action_prob))
+        act_info["argmax"] = False
+    return d_act, act_info
+
+def output_to_action_soft(output_list, info):
+    act_info = dict()
+    p = (0.5 * numpy.tanh(output_list[-1]) + 0.5)
+    if(random.random() < max(p, lower_b)):
         d_act = numpy.argmax(output_list[:4])
         act_info["entropy"] = 0.0
         act_info["argmax"] = True
