@@ -42,7 +42,7 @@ def import_mazes(n=16, cell_scale=11, file_name=None, crowd_ratio=None):
             return ret
 
 def resample_maze21_rand(n):
-    c_ratio = random.random(0.0, 0.50)
+    c_ratio = 0.45 * random.random()
     return [gen_maze(cell_scale=21, crowd_ratio=c_ratio) for _ in range(n)]
 
 def resample_maze21(n):
