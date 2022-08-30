@@ -29,9 +29,11 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
     if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
         ext_info["connection_weights"] = []
         ext_info["adapt_nc_step"] = []
+        ext_info["adapt_nc_rollout"] = []
     if(is_meta_test and ("mem" in learner.l1.__dict__ or "mem_h" in  learner.l1.__dict__)):
         ext_info["hidden_states"] = []
         ext_info["adapt_h_step"] = []
+        ext_info["adapt_h_rollout"] = []
     rollout_idx = 0
     game.task_reset()
     for rollout_weight, eps_type, is_test in config.inner_rollouts:
@@ -46,19 +48,23 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
             ext_info["connection_weights"].append([])
             if(is_meta_test and "heb_h" in learner.l1.__dict__):
-                nc_start = numpy.ravel(learner.l1.heb_h())
+                nc_rollout = numpy.ravel(learner.l1.heb_h())
             if(is_meta_test and "heb" in learner.l2.__dict__):
-                nc_start = numpy.ravel(learner.l2.heb())
+                nc_rollout = numpy.ravel(learner.l2.heb())
             if(is_meta_test and "mem_c" in learner.l1.__dict__):
-                nc_start = numpy.ravel(learner.l1.mem_c())
-            nc_end = nc_start
+                nc_rollout = numpy.ravel(learner.l1.mem_c())
+            if(rollout_idx == 1):
+                nc_start = nc_rollout
+            nc_end = nc_rollout
         if(is_meta_test and ("mem" in learner.l1.__dict__ or "mem_h" in  learner.l1.__dict__)):
             ext_info["hidden_states"].append([])
             if(is_meta_test and "mem" in learner.l1.__dict__):
-                h_start = numpy.ravel(learner.l1.mem())
+                h_rollout = numpy.ravel(learner.l1.mem())
             if(is_meta_test and "mem_h" in learner.l1.__dict__):
-                h_start = numpy.ravel(learner.l1.mem_h())
-            h_end = h_start
+                h_rollout = numpy.ravel(learner.l1.mem_h())
+            if(rollout_idx == 1):
+                h_start = h_rollout
+            h_end = h_rollout
 
         inputs, _ = config.obs_to_input(obs, action, info)
         steps = 1
@@ -119,9 +125,15 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             ext_info["entropy"].append(avg_ent / (steps - 1))
             ext_info["goal_arr"].append(is_goal)
             if("adapt_nc_step" in ext_info):
-                ext_info["adapt_nc_end"] = numpy.linalg.norm(nc_end - nc_start)
+                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_end - nc_rollout))
             if("adapt_h_step" in ext_info):
-                ext_info["adapt_h_end"] = numpy.linalg.norm(h_end - h_start)
+                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_end - h_rollout))
         weights_all += rollout_weight
         rollout_num += 1
+
+    if(is_meta_test):
+        if("adapt_nc_step" in ext_info):
+            ext_info["adapt_nc_end"] = numpy.linalg.norm(nc_end - nc_start)
+        if("adapt_h_step" in ext_info):
+            ext_info["adapt_h_end"] = numpy.linalg.norm(h_end - h_start)
     return score / weights_all, score_rollouts, step_rollouts, ext_info
