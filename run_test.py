@@ -99,6 +99,10 @@ class Evaluator(object):
         uncertainty_list = []
         goal_arr = []
         ent_list = []
+        nc_step = []
+        h_step = []
+        nc_end = []
+        h_end = []
         idx = 0
         for pattern in pattern_list:
             idx += 1
@@ -119,11 +123,17 @@ class Evaluator(object):
             ent_list.append(ext_info["entropy"])
             goal_arr.append(ext_info["goal_arr"])
             uncertainty_list.append(ext_info["certainty"])
+            if("adapt_nc_step" in ext_info):
+                nc_step.extend(ext_info["adapt_nc_step"])
+                nc_end.append(ext_info["adapt_nc_end"])
+            if("adapt_h_step" in ext_info):
+                h_step.extend(ext_info["adapt_h_step"])
+                h_end.append(ext_info["adapt_h_end"])
 
             self._game.reset(pattern, "TEST")
-            optimal_steps.append(self._game.optimal_steps())
+            #optimal_steps.append(self._game.optimal_steps())
 
-        return score_rollouts_list, uncertainty_list, goal_arr, ent_list, exploration_list
+        return score_rollouts_list, uncertainty_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_step, h_step, nc_end, h_end
 
 class RemoteEvaluator(object):
     def __init__(self, config_file):
@@ -164,6 +174,11 @@ class RemoteEvaluator(object):
         goal_arrs = []
         explorations = []
         ent_lists = []
+        optimals = []
+        nc_ends = []
+        h_ends = []
+        nc_steps = []
+        h_steps = []
         deta = (len(test_pattern_lst)  - 1) // (self._actor_number - len(self._failed_actors)) + 1
         i = 0
         j = 0
@@ -187,12 +202,17 @@ class RemoteEvaluator(object):
             for _ in range(len(unrecv_res)):
                 idx = unrecv_res.pop()
                 try:
-                    score_rollout, uncert_list, goal_arr, ent_list, exploration_list = tasks[idx].get_nowait()
+                    score_rollout, uncert_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_step, h_step, nc_end, h_end = tasks[idx].get_nowait()
                     score_rollouts.extend(score_rollout)
                     uncert_lists.extend(uncert_list)
                     ent_lists.extend(ent_list)
                     goal_arrs.extend(goal_arr)
                     explorations.extend(exploration_list)
+                    optimals.extend(optimal_steps)
+                    nc_steps.extend(nc_step)
+                    h_steps.extend(h_step)
+                    nc_ends.extend(nc_end)
+                    h_ends.extend(h_end)
                 except Exception:
                     unrecv_res.add(idx)
             wait_time += 1
@@ -207,6 +227,13 @@ class RemoteEvaluator(object):
         print("ent_lists", formalize(numpy.mean(ent_lists, axis=0)))
         print("goal_arrs", formalize(numpy.mean(goal_arrs, axis=0)))
         print("explorations", formalize(numpy.mean(explorations, axis=0)))
+        print("optimals", numpy.mean(optimals))
+        if(len(nc_ends) > 0):
+            print("neural connection migrations", numpy.mean(nc_ends))
+            print("neural connection vibrations", numpy.mean(nc_steps))
+        if(len(h_ends) > 0):
+            print("hidden state migrations", numpy.mean(h_ends))
+            print("hidden state vibrations", numpy.mean(h_steps))
         return get_mean_std(score_rollouts)
 
 def local_eval(config):
