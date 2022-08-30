@@ -126,11 +126,11 @@ class Evaluator(object):
             goal_arr.append(ext_info["goal_arr"])
             uncertainty_list.append(ext_info["certainty"])
             if("adapt_nc_step" in ext_info):
-                nc_step.extend(ext_info["adapt_nc_step"])
+                nc_step.append(ext_info["adapt_nc_step"])
                 nc_end.append(ext_info["adapt_nc_end"])
                 nc_rollout.append(ext_info["adapt_nc_rollout"])
             if("adapt_h_step" in ext_info):
-                h_step.extend(ext_info["adapt_h_step"])
+                h_step.append(ext_info["adapt_h_step"])
                 h_end.append(ext_info["adapt_h_end"])
                 h_rollout.append(ext_info["adapt_h_rollout"])
 
@@ -230,7 +230,7 @@ class RemoteEvaluator(object):
             print("Out of time for servers id: %s" % unrecv_res)
             for key in unrecv_res:
                 self._failed_actors.add(key)
-        formalize = lambda arr:" ".join(map(str, arr.tolist()))
+        formalize = lambda arr:"\t".join(map(str, arr.tolist()))
         print("uncert_lists", formalize(numpy.mean(uncert_lists, axis=0)))
         print("ent_lists", formalize(numpy.mean(ent_lists, axis=0)))
         print("goal_arrs", formalize(numpy.mean(goal_arrs, axis=0)))
@@ -238,11 +238,11 @@ class RemoteEvaluator(object):
         print("optimals", numpy.mean(optimals))
         if(len(nc_ends) > 0):
             print("neural connection migrations", numpy.mean(nc_ends))
-            print("neural connection vibrations", numpy.mean(nc_steps))
+            print("neural connection vibrations", formalize(numpy.mean(nc_steps, axis=0)))
             print("neural connection rollouts", formalize(numpy.mean(nc_rollouts, axis=0)))
         if(len(h_ends) > 0):
             print("hidden state migrations", numpy.mean(h_ends))
-            print("hidden state vibrations", numpy.mean(h_steps))
+            print("hidden state vibrations", formalize(numpy.mean(h_steps, axis=0)))
             print("hidden state rollouts", formalize(numpy.mean(h_rollouts, axis=0)))
         return get_mean_std(score_rollouts)
 

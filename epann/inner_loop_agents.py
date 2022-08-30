@@ -47,24 +47,34 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
 
         if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
             ext_info["connection_weights"].append([])
+            nc_steps = []
             if(is_meta_test and "heb_h" in learner.l1.__dict__):
-                nc_rollout = numpy.ravel(learner.l1.heb_h())
+                nc_end = numpy.ravel(learner.l1.heb_h())
             if(is_meta_test and "heb" in learner.l2.__dict__):
-                nc_rollout = numpy.ravel(learner.l2.heb())
+                nc_end = numpy.ravel(learner.l2.heb())
             if(is_meta_test and "mem_c" in learner.l1.__dict__):
-                nc_rollout = numpy.ravel(learner.l1.mem_c())
+                nc_end = numpy.ravel(learner.l1.mem_c())
             if(rollout_idx == 1):
-                nc_start = nc_rollout
-            nc_end = nc_rollout
+                nc_start = nc_end
+                prev_nc_rollout = nc_end
+            nc_rollout = numpy.copy(nc_end)
+            nc_exist = True
+        else:
+            nc_exist = False
         if(is_meta_test and ("mem" in learner.l1.__dict__ or "mem_h" in  learner.l1.__dict__)):
             ext_info["hidden_states"].append([])
+            h_steps = []
             if(is_meta_test and "mem" in learner.l1.__dict__):
-                h_rollout = numpy.ravel(learner.l1.mem())
+                h_end = numpy.ravel(learner.l1.mem())
             if(is_meta_test and "mem_h" in learner.l1.__dict__):
-                h_rollout = numpy.ravel(learner.l1.mem_h())
+                h_end = numpy.ravel(learner.l1.mem_h())
             if(rollout_idx == 1):
-                h_start = h_rollout
-            h_end = h_rollout
+                h_start = h_end
+                prev_h_rollout = h_end
+            h_rollout = numpy.copy(h_end)
+            h_exist = True
+        else:
+            h_exist = False
 
         inputs, _ = config.obs_to_input(obs, action, info)
         steps = 1
@@ -74,31 +84,30 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         while not done:
             # Only do hebbian when train episode
             output = learner(inputs)
+            if(nc_exist):
+                prev_nc_end = nc_end
+            if(h_exist):
+                prev_h_end = h_end
             if(is_meta_test and "heb_h" in learner.l1.__dict__):
-                prev_nc_end = nc_end
                 nc_end = numpy.ravel(learner.l1.heb_h())
-                ext_info["connection_weights"][-1].append(nc_end)
-                ext_info["adapt_nc_step"].append(numpy.linalg.norm(prev_nc_end - nc_end))
             if(is_meta_test and "heb" in learner.l2.__dict__):
-                prev_nc_end = nc_end
                 nc_end = numpy.ravel(learner.l2.heb()) 
-                ext_info["connection_weights"][-1].append(nc_end)
-                ext_info["adapt_nc_step"].append(numpy.linalg.norm(prev_nc_end - nc_end))
             if(is_meta_test and "mem_c" in learner.l1.__dict__):
-                prev_nc_end = nc_end
                 nc_end = numpy.ravel(learner.l1.mem_c())
-                ext_info["connection_weights"][-1].append(nc_end)
-                ext_info["adapt_nc_step"].append(numpy.linalg.norm(prev_nc_end - nc_end))
             if(is_meta_test and "mem" in learner.l1.__dict__):
-                prev_h_end = h_end
                 h_end = numpy.ravel(learner.l1.mem())
-                ext_info["hidden_states"][-1].append(h_end)
-                ext_info["adapt_h_step"].append(numpy.linalg.norm(prev_h_end - h_end))
             if(is_meta_test and "mem_h" in learner.l1.__dict__):
-                prev_h_end = h_end
                 h_end = numpy.ravel(learner.l1.mem_h())
+            if(nc_exist):
+                nc_deta = numpy.linalg.norm(prev_nc_end - nc_end)
+                nc_rollout += nc_end
+                ext_info["connection_weights"][-1].append(nc_end)
+                nc_steps.append(nc_deta)
+            if(h_exist):
+                h_deta = numpy.linalg.norm(prev_h_end - h_end)
+                h_rollout += h_end
                 ext_info["hidden_states"][-1].append(h_end)
-                ext_info["adapt_h_step"].append(numpy.linalg.norm(prev_h_end - h_end))
+                h_steps.append(h_deta)
             action, act_info = config.output_to_action(output, info)
             if("argmax" in act_info and act_info["argmax"]):
                 decisive_steps += 1
@@ -124,16 +133,22 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             ext_info["certainty"].append(decisive_steps / (steps - 1))
             ext_info["entropy"].append(avg_ent / (steps - 1))
             ext_info["goal_arr"].append(is_goal)
-            if("adapt_nc_step" in ext_info):
-                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_end - nc_rollout))
-            if("adapt_h_step" in ext_info):
-                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_end - h_rollout))
+            if(nc_exist):
+                nc_rollout *= 1/steps
+                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_rollout - prev_nc_rollout))
+                ext_info["adapt_nc_step"].append(numpy.mean(nc_steps))
+                prev_nc_rollout = nc_rollout
+            if(h_exist):
+                h_rollout *= 1/steps
+                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_rollout - prev_h_rollout))
+                ext_info["adapt_h_step"].append(numpy.mean(h_steps))
+                prev_h_rollout = h_rollout
         weights_all += rollout_weight
         rollout_num += 1
 
     if(is_meta_test):
-        if("adapt_nc_step" in ext_info):
-            ext_info["adapt_nc_end"] = numpy.linalg.norm(nc_end - nc_start)
-        if("adapt_h_step" in ext_info):
-            ext_info["adapt_h_end"] = numpy.linalg.norm(h_end - h_start)
+        if(nc_exist):
+            ext_info["adapt_nc_end"] = numpy.linalg.norm(nc_rollout - nc_start)
+        if(h_exist):
+            ext_info["adapt_h_end"] = numpy.linalg.norm(h_rollout - h_start)
     return score / weights_all, score_rollouts, step_rollouts, ext_info
