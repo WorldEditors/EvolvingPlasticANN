@@ -136,11 +136,11 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             ext_info["entropy"].append(avg_ent / (steps - 1))
             ext_info["goal_arr"].append(is_goal)
             if(nc_exist):
-                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_ema - prev_ema_nc))
+                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_ema - init_nc_ema))
                 ext_info["adapt_nc_step"].append(numpy.mean(d_nc_rollouts))
                 prev_ema_nc = numpy.copy(nc_ema)
             if(h_exist):
-                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_ema - prev_ema_h))
+                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_ema - init_h_ema))
                 ext_info["adapt_h_step"].append(numpy.mean(d_h_rollouts))
                 prev_ema_h = numpy.copy(h_ema)
         weights_all += rollout_weight
