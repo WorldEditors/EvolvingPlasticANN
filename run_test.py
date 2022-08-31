@@ -4,6 +4,7 @@ Runing Meta-Training and Meta-Testing Loops
 import sys
 import time
 import numpy
+import numpy.ma as ma
 import parl
 import importlib
 from time import sleep
@@ -99,12 +100,10 @@ class Evaluator(object):
         uncertainty_list = []
         goal_arr = []
         ent_list = []
-        nc_step = []
-        nc_rollout = []
-        h_step = []
-        nc_end = []
-        h_rollout = []
-        h_end = []
+        nc_deta = []
+        nc_ema = []
+        h_deta = []
+        h_ema = []
         idx = 0
         for pattern in pattern_list:
             idx += 1
@@ -125,19 +124,17 @@ class Evaluator(object):
             ent_list.append(ext_info["entropy"])
             goal_arr.append(ext_info["goal_arr"])
             uncertainty_list.append(ext_info["certainty"])
-            if("adapt_nc_step" in ext_info):
-                nc_step.append(ext_info["adapt_nc_step"])
-                nc_end.append(ext_info["adapt_nc_end"])
-                nc_rollout.append(ext_info["adapt_nc_rollout"])
-            if("adapt_h_step" in ext_info):
-                h_step.append(ext_info["adapt_h_step"])
-                h_end.append(ext_info["adapt_h_end"])
-                h_rollout.append(ext_info["adapt_h_rollout"])
+            if("step_nc_deta" in ext_info):
+                nc_deta.append(ext_info["step_nc_deta"])
+                nc_ema.append(ext_info["step_nc_ema"])
+            if("step_h_deta" in ext_info):
+                h_deta.append(ext_info["step_h_deta"])
+                h_ema.append(ext_info["step_h_ema"])
 
             self._game.reset(pattern, "TEST")
             #optimal_steps.append(self._game.optimal_steps())
 
-        return score_rollouts_list, uncertainty_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_step, h_step, nc_rollout, h_rollout, nc_end, h_end
+        return score_rollouts_list, uncertainty_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_deta, h_deta, nc_ema, h_ema
 
 class RemoteEvaluator(object):
     def __init__(self, config_file):
@@ -179,12 +176,10 @@ class RemoteEvaluator(object):
         explorations = []
         ent_lists = []
         optimals = []
-        nc_ends = []
-        h_ends = []
-        nc_rollouts = []
-        h_rollouts = []
-        nc_steps = []
-        h_steps = []
+        nc_detas = []
+        h_detas = []
+        nc_emas = []
+        h_emas = []
         deta = (len(test_pattern_lst)  - 1) // (self._actor_number - len(self._failed_actors)) + 1
         i = 0
         j = 0
@@ -208,19 +203,17 @@ class RemoteEvaluator(object):
             for _ in range(len(unrecv_res)):
                 idx = unrecv_res.pop()
                 try:
-                    score_rollout, uncert_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_step, h_step, nc_rollout, h_rollout, nc_end, h_end = tasks[idx].get_nowait()
+                    score_rollout, uncert_list, goal_arr, ent_list, exploration_list, optimal_steps, nc_deta, h_deta, nc_ema, h_ema = tasks[idx].get_nowait()
                     score_rollouts.extend(score_rollout)
                     uncert_lists.extend(uncert_list)
                     ent_lists.extend(ent_list)
                     goal_arrs.extend(goal_arr)
                     explorations.extend(exploration_list)
                     optimals.extend(optimal_steps)
-                    nc_steps.extend(nc_step)
-                    h_steps.extend(h_step)
-                    nc_rollouts.extend(nc_rollout)
-                    h_rollouts.extend(h_rollout)
-                    nc_ends.extend(nc_end)
-                    h_ends.extend(h_end)
+                    nc_detas.extend(nc_deta)
+                    h_detas.extend(h_deta)
+                    nc_emas.extend(nc_ema)
+                    h_emas.extend(h_ema)
                 except Exception:
                     unrecv_res.add(idx)
             wait_time += 1
@@ -230,20 +223,26 @@ class RemoteEvaluator(object):
             print("Out of time for servers id: %s" % unrecv_res)
             for key in unrecv_res:
                 self._failed_actors.add(key)
-        formalize = lambda arr:"\t".join(map(str, arr.tolist()))
+        formalize = lambda arr:" ".join(map(str, arr.tolist()))
         print("uncert_lists", formalize(numpy.mean(uncert_lists, axis=0)))
         print("ent_lists", formalize(numpy.mean(ent_lists, axis=0)))
         print("goal_arrs", formalize(numpy.mean(goal_arrs, axis=0)))
         print("explorations", formalize(numpy.mean(explorations, axis=0)))
         print("optimals", numpy.mean(optimals))
-        if(len(nc_ends) > 0):
-            print("neural connection migrations", numpy.mean(nc_ends))
-            print("neural connection vibrations", formalize(numpy.mean(nc_steps, axis=0)))
-            print("neural connection rollouts", formalize(numpy.mean(nc_rollouts, axis=0)))
-        if(len(h_ends) > 0):
-            print("hidden state migrations", numpy.mean(h_ends))
-            print("hidden state vibrations", formalize(numpy.mean(h_steps, axis=0)))
-            print("hidden state rollouts", formalize(numpy.mean(h_rollouts, axis=0)))
+        if(len(nc_detas) > 0):
+            nc_emas = numpy.array(nc_emas)
+            nc_detas = numpy.array(nc_detas)
+            mask_nc_emas = ma.masked_array(nc_emas, mask=(nc_emas < 0))
+            mask_nc_detas = ma.masked_array(nc_detas, mask=(nc_detas < 0))
+            print("neural connection vibrations", formalize(numpy.mean(mask_nc_detas, axis=0)))
+            print("neural connection migrations", formalize(numpy.mean(mask_nc_emas, axis=0)))
+        if(len(h_detas) > 0):
+            h_emas = numpy.array(h_emas)
+            h_detas = numpy.array(h_detas)
+            mask_h_emas = ma.masked_array(h_emas, mask=(h_emas < 0))
+            mask_h_detas = ma.masked_array(h_detas, mask=(h_detas < 0))
+            print("hidden state vibrations", formalize(numpy.mean(mask_h_detas, axis=0)))
+            print("hidden state migrations", formalize(numpy.mean(mask_h_emas, axis=0)))
         return get_mean_std(score_rollouts)
 
 def local_eval(config):

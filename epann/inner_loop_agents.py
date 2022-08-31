@@ -7,7 +7,7 @@ get_adpation_score_discrete_pg: Policy Gradient for RL Tasks (discrete action sp
 """
 import numpy
 from numpy import random
-from epann.utils import param_norm, param_norm_2, param_max
+from epann.utils import param_norm, param_norm_2, param_max, moving_average
 
 def str_list(lst):
     return "\t".join(map(str, lst))
@@ -15,8 +15,9 @@ def str_list(lst):
 # back propagation (supervised learning) in inner-loop
 def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_test=False):
     score = 0.0
-    gamma = 0.96
+    smooth_window = 15
     weights_all = 0.0
+    max_rollout = 16
     score_rollouts = []
     step_rollouts = []
     rollout_num = 0
@@ -28,15 +29,17 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
         ext_info["entropy"] = []
     if(is_meta_test and ("heb" in learner.l2.__dict__ or "mem_c" in learner.l1.__dict__ or "heb_h" in learner.l1.__dict__)):
         ext_info["connection_weights"] = []
-        ext_info["adapt_nc_step"] = []
-        ext_info["adapt_nc_rollout"] = []
+        ext_info["step_nc_deta"] = [-1] * max_rollout
+        ext_info["step_nc_ema"] = [-1] * max_rollout
+        nc_list = []
         nc_exist = True
     else:
         nc_exist = False
     if(is_meta_test and ("mem" in learner.l1.__dict__ or "mem_h" in  learner.l1.__dict__)):
         ext_info["hidden_states"] = []
-        ext_info["adapt_h_step"] = []
-        ext_info["adapt_h_rollout"] = []
+        ext_info["step_h_deta"] = [-1] * max_rollout
+        ext_info["step_h_ema"] = [-1] * max_rollout
+        h_list = []
         h_exist = True
     else:
         h_exist = False
@@ -54,29 +57,20 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
 
         if(nc_exist):
             ext_info["connection_weights"].append([])
-            d_nc_steps = []
-            d_nc_rollouts = []
             if("heb_h" in learner.l1.__dict__):
                 cur_nc = numpy.ravel(learner.l1.heb_h())
             if("heb" in learner.l2.__dict__):
                 cur_nc = numpy.ravel(learner.l2.heb())
             if("mem_c" in learner.l1.__dict__):
                 cur_nc = numpy.ravel(learner.l1.mem_c())
-            if(rollout_idx == 1):
-                nc_ema = numpy.copy(cur_nc)
-                prev_ema_nc = numpy.copy(nc_ema)
-                init_nc_ema = numpy.copy(cur_nc)
+            nc_list.append(cur_nc)
         if(h_exist):
             ext_info["hidden_states"].append([])
-            d_h_rollouts = []
             if("mem" in learner.l1.__dict__):
                 cur_h = numpy.ravel(learner.l1.mem())
             if("mem_h" in learner.l1.__dict__):
                 cur_h = numpy.ravel(learner.l1.mem_h())
-            if(rollout_idx == 1):
-                h_ema = numpy.copy(cur_h)
-                prev_ema_h = numpy.copy(h_ema)
-                init_h_ema = numpy.copy(cur_h)
+            h_list.append(cur_h)
 
         inputs, _ = config.obs_to_input(obs, action, info)
         steps = 1
@@ -94,10 +88,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
                 if("mem_c" in learner.l1.__dict__):
                     cur_nc = numpy.ravel(learner.l1.mem_c())
                 ext_info["connection_weights"][-1].append(cur_nc)
-
-                nc_ema = cur_nc * (1.0 - gamma) + gamma * nc_ema
-                d_nc = numpy.linalg.norm(nc_ema - cur_nc)
-                d_nc_rollouts.append(d_nc)
+                nc_list.append(cur_nc)
 
             if(h_exist):
                 if("mem" in learner.l1.__dict__):
@@ -105,10 +96,7 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
                 if("mem_h" in learner.l1.__dict__):
                     cur_h = numpy.ravel(learner.l1.mem_h())
                 ext_info["hidden_states"][-1].append(cur_h)
-
-                h_ema = cur_h * (1.0 - gamma) + gamma * h_ema
-                d_h = numpy.linalg.norm(h_ema - cur_h)
-                d_h_rollouts.append(d_h)
+                h_list.append(cur_h)
 
             action, act_info = config.output_to_action(output, info)
             if("argmax" in act_info and act_info["argmax"]):
@@ -122,9 +110,6 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             if("entropy" in act_info):
                 avg_ent += act_info["entropy"]
 
-            #if(is_meta_test):
-                #print(rollout_idx, obs, info)
-                
             steps += 1
         #put the information of the last step in it
         score += (game.score - additional_wht) * rollout_weight
@@ -135,20 +120,28 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             ext_info["certainty"].append(decisive_steps / (steps - 1))
             ext_info["entropy"].append(avg_ent / (steps - 1))
             ext_info["goal_arr"].append(is_goal)
-            if(nc_exist):
-                ext_info["adapt_nc_rollout"].append(numpy.linalg.norm(nc_ema - init_nc_ema))
-                ext_info["adapt_nc_step"].append(numpy.mean(d_nc_rollouts))
-                prev_ema_nc = numpy.copy(nc_ema)
-            if(h_exist):
-                ext_info["adapt_h_rollout"].append(numpy.linalg.norm(h_ema - init_h_ema))
-                ext_info["adapt_h_step"].append(numpy.mean(d_h_rollouts))
-                prev_ema_h = numpy.copy(h_ema)
         weights_all += rollout_weight
         rollout_num += 1
 
     if(is_meta_test):
         if(nc_exist):
-            ext_info["adapt_nc_end"] = numpy.linalg.norm(nc_ema - init_nc_ema)
+            nc_list = numpy.array(nc_list)
+            nc_ema = moving_average(nc_list, smooth_window)
+            length, depth = numpy.shape(nc_list)
+            step_deta = (numpy.sum(numpy.abs(nc_list - nc_ema)**2,axis=-1))**(1./2)
+            step_ema = (numpy.sum(numpy.abs(nc_ema - nc_ema[0])**2,axis=-1))**(1./2)
+            d_step = length // 100
+            for i in range(min(d_step, max_rollout)):
+            	ext_info["step_nc_deta"][i] = numpy.mean(step_deta[i*100:(i+1)*100])
+            	ext_info["step_nc_ema"][i] = step_ema[(i+1) * 100 - 1]
         if(h_exist):
-            ext_info["adapt_h_end"] = numpy.linalg.norm(h_ema - init_h_ema)
+            h_list = numpy.array(h_list)
+            h_ema = moving_average(h_list, smooth_window)
+            length, depth = numpy.shape(h_list)
+            step_deta = 1.0 / depth * numpy.sum(numpy.abs(h_list - h_ema)**2,axis=-1)**(1./2)
+            step_ema = 1.0 / depth * numpy.sum(numpy.abs(h_ema - h_ema[0])**2,axis=-1)**(1./2)
+            d_step = length // 100
+            for i in range(min(d_step, max_rollout)):
+            	ext_info["step_h_deta"][i] = numpy.mean(step_deta[i*100:(i+1)*100])
+            	ext_info["step_h_ema"][i] = step_ema[(i+1) * 100 - 1]
     return score / weights_all, score_rollouts, step_rollouts, ext_info

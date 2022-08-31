@@ -9,6 +9,7 @@ import time
 import parl
 from copy import deepcopy
 import random as rand
+import scipy
 import numpy.random as random
 
 def categorical(p):
@@ -159,3 +160,21 @@ def reset_weights_axis(weights, neural_structure):
         i += 1
         if(connect_type == "recursive"):
             weights["W_%d"%i][range(number), range(number)] = 0.0
+
+# Moving Average on Axis 0
+def moving_average(tensor, window):
+    gamma = 0.90
+    conv = [gamma**(window - i) for i in range(window)]
+    conv = conv + [1.0] + list(reversed(conv))
+    conv = numpy.array(conv)
+    conv *= 1.0/numpy.sum(conv)
+    l = 2 * window + 1
+    pad_b = numpy.expand_dims(tensor[0], axis=0)#numpy.sum(conv[-l:] * tensor[:l], axis=0)
+    pad_e = numpy.expand_dims(tensor[-1], axis=0)#numpy.sum(conv[:l] * tensor[-l:], axis=0)
+    pad_b = numpy.repeat(pad_b, window, axis=0)
+    pad_e = numpy.repeat(pad_e, window, axis=0)
+    n_tensor = numpy.concatenate([pad_b, tensor, pad_e], axis=0)
+    #ema = numpy.convolve(n_tensor, conv, mode="valid")
+    ema = scipy.ndimage.uniform_filter1d(tensor, size=l, axis=0, mode='constant')
+    return ema
+    
