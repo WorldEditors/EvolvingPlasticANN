@@ -138,8 +138,8 @@ def inner_loop_forward(config, pattern, learner, game, additional_wht, is_meta_t
             h_list = numpy.array(h_list)
             h_ema = moving_average(h_list, smooth_window)
             length, depth = numpy.shape(h_list)
-            step_deta = 1.0 / depth * numpy.sum(numpy.abs(h_list - h_ema)**2,axis=-1)**(1./2)
-            step_ema = 1.0 / depth * numpy.sum(numpy.abs(h_ema - h_ema[0])**2,axis=-1)**(1./2)
+            step_deta = numpy.sum(numpy.abs(h_list - h_ema)**2,axis=-1)**(1./2)
+            step_ema = numpy.sum(numpy.abs(h_ema - h_ema[0])**2,axis=-1)**(1./2)
             d_step = length // 100
             for i in range(min(d_step, max_rollout)):
             	ext_info["step_h_deta"][i] = numpy.mean(step_deta[i*100:(i+1)*100])
