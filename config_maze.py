@@ -6,7 +6,7 @@ import math
 import random
 import numpy
 from envs.env_maze import  MazeTask
-from envs.env_maze import gen_pattern as gen_single
+from envs.env_maze import gen_task as gen_single
 from envs.env_maze import output_to_action
 from envs.env_maze import obs_to_input
 from epann.utils import categorical
@@ -83,4 +83,4 @@ def game():
 def test_patterns():
     return import_mazes(n=2048, file_name="./demo/tasks/2048_maze15.dat")
 
-test_load_model = root + "demo/models/maze_decprnn_postdn_demo.dat"
+test_load_model = "./demo/models/maze_decprnn_postdn_demo.dat"

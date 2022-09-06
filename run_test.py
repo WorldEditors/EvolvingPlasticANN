@@ -43,7 +43,6 @@ class LocalEvaluator(object):
         step_rollouts_list = []
         exploration_list = []
         weighted_scores = []
-        optimal_steps = []
         uncertainty_list = []
         ent_list = []
         hidden_states = []
@@ -77,7 +76,6 @@ class LocalEvaluator(object):
                 connection_weights.append(ext_info["connection_weights"])
 
             self._game.reset(pattern, "TEST")
-            optimal_steps.append(self._game.optimal_steps())
         return score_rollouts_list,  uncertainty_list, goal_arr, ent_list, exploration_list, hidden_states, connection_weights
 
 @parl.remote_class(wait=False)
@@ -175,7 +173,6 @@ class RemoteEvaluator(object):
         goal_arrs = []
         explorations = []
         ent_lists = []
-        optimals = []
         nc_detas = []
         h_detas = []
         nc_emas = []
