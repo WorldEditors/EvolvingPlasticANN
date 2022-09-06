@@ -16,26 +16,26 @@ from models_zoo import ModelPFCPreMod, ModelPFCAfterMod, ModelPFCNoMod
 from gen_train_test_patterns import import_ants
 
 root = "./results"
-directory = root + "/workspace_loco_ant_fc/"
+directory = root + "/workspace_loco_ant/"
 
 # Model Structure for EPRNN
-model = ModelFCBase2(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
-#model = ModelLSTMBase1(input_shape=(15,), output_shape=(4,), hidden_size=64, extra_hidden_size=64, output_activation="softmax", init_scale=0.05)
+#model = ModelFCBase2(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
+#model = ModelLSTMBase1(input_shape=(38,), output_shape=(8,), hidden_size=64, extra_hidden_size=64, output_activation="none", init_scale=0.05)
 #model = ModelRNNBase1(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', init_scale=0.05)
 
-#model = ModelPFCNoMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
-#model = ModelPFCPreMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
-#model = ModelPFCAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+#model = ModelPFCNoMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+#model = ModelPFCPreMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+#model = ModelPFCAfterMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 
-#model = ModelPRNNNoMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
-#model = ModelPRNNPreMod(input_shape=(15,), output_shape=(5,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+#model = ModelPRNNNoMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+#model = ModelPRNNPreMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 # Hebbian-Type: 1. alpha ABCD; 2. Eligibility Traces; 3. Decomposed Plasticity; 4. Evolving & Merging
-#model = ModelPRNNAfterMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
+model = ModelPRNNAfterMod(input_shape=(38,), output_shape=(8,), hidden_size=64, output_activation="none", initialize_settings='R', hebbian_type=3, init_scale=0.05)
 
 # Refer to config_SeqPred_task.py for other configurations
 
 #If no load_model is specified, the model is random initialized
-#load_model = root + "demo/models/model.maze15_prnn64_aftermod.dat"
+#load_model = root + "demo/models/..."
 
 #Address for xparl servers, do "xparl start " in your server
 #server = "10.216.186.20:8010"
@@ -45,11 +45,7 @@ server = "localhost:8010"
 actor_number = 380
 batch_size = 1
 task_sub_iterations = 1
-inner_rollouts = [(0.36, "TEST", True), (0.6, "TEST", True), (1.0, "TEST", True)]
-
-#The task pattern are kept still for that much steps
-pattern_renew = 3
-pattern_retain_iterations = 1
+inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (0.36, "TEST", True), (0.6, "TEST", True), (1.0, "TEST", True)]
 
 #Select the inner-loop type, for PRNN / RNN / LSTM / EPMLP select "forward", for ES-MAML select "policy_gradient_continuous"
 adapt_type = "forward"
@@ -71,7 +67,7 @@ test_iter = 50
 
 #Sampled Tasks for meta-training
 def train_patterns(n_step=0):
-    return import_ants(task_type="TRAIN", num=3)
+    return import_ants(task_type="TRAIN", num=8)
 
 #Sampled Tasks for meta-testing
 def valid_patterns(pattern_number=64):

@@ -70,8 +70,6 @@ class Trainer(object):
         parl.connect(config.server, distributed_files=['./epann/*.py', './envs/*.py'])
         self._evaluators = [Evaluator(config_file) for _ in range(self._actor_number)]
         self._pattern_list = config.train_patterns()
-        self._pattern_renew = config.pattern_renew
-        self._pattern_retain_iterations = config.pattern_retain_iterations
         self._task_iterations = config.task_sub_iterations
         self._max_wait_time = 120
         self._max_wait_time_eval = 240
