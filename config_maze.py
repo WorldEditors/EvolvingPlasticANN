@@ -83,4 +83,4 @@ def game():
 def test_patterns():
     return import_mazes(n=2048, file_name="./demo/tasks/2048_maze15.dat")
 
-test_load_model = root + "demo/models/..."
+test_load_model = root + "demo/models/maze_decprnn_postdn_demo.dat"
