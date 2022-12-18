@@ -1,6 +1,6 @@
 # Introduction
-Inspired by biological neural networks (BNNs) is that BNNs that acquire new skills across variant tasks on their own, we try to implement "Model-Based Meta learning" or "In-Context Learning" in the nested learning loops. 
-The learning no longer relies on human-designed target function and optimization but through the black-box mechanism of the neural networks and plasticity rules. 
+Inspired by biological neural networks (BNNs) that acquire new skills across variant tasks on their own, we try to implement "Model-Based Meta learning" or "In-Context Learning" in the nested learning loops. 
+In-Context Learning no longer relies on human-designed target function and optimization but through the black-box mechanism of the neural networks and plasticity rules. 
 Our investigation show that Lifelong In-Context Learning is possible through modeling Hebbian plasticity.
 We build this evolving plasticity repo to facilitate the research on this topic.
 
