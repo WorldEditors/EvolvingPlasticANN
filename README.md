@@ -15,12 +15,12 @@ metagym >= 0.2.0.dev2
 
 # Run Meta-Training in Random Maze-2D environments
 ```bash
-python run_train.py config_maze_train
+python run_train.py config_maze
 ```
 
 # Run Meta-Testing in Random Maze-2D environments
 ```bash
-python run_test.py config_maze_test
+python run_test.py config_maze
 ```
 
 If you are to use parallelization mode, start xparl master on your remote server by using: 
