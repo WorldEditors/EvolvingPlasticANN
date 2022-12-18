@@ -31,6 +31,7 @@ class Evaluator(object):
         weighted_scores = []
         for _ in range(task_iterations):
             for pattern in pattern_list:
+                #raise Exception(pattern)
                 self._nn.from_vector(weights_x, shape)
                 self._nn.set_all_parameters(static_weights, is_static=True)
                 additional_wht = self._ent_factor * param_norm_2(weights_x)
@@ -83,10 +84,7 @@ class Trainer(object):
             raise Exception("To many actors failed, quit job, please check your cluster")
 
     def evolve(self, iteration):
-        self._pattern_kept_time += 1
-        if(self._pattern_kept_time >= self._pattern_retain_iterations): 
-            self._pattern_list = self._config.train_patterns(n_step=iteration)
-            self._pattern_kept_time = 0
+        self._pattern_list = self._config.train_patterns(n_step=iteration)
         tasks = []
         
         #distribute tasks
@@ -110,6 +108,7 @@ class Trainer(object):
             i_e = i
             wait_time = 0
             while wait_time < self._max_wait_time and len(unrecv_res) > 0:
+                print("unrecv_res:", unrecv_res)
                 time.sleep(1)
                 remove_keys = set()
                 for key in unrecv_res:

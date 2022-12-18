@@ -7,20 +7,19 @@ from numpy import random
 from copy import deepcopy
 import gym
 import metagym
-from metagym.metamaze.envs.maze_gen import TaskConfig
+from metagym.metamaze.envs.maze_task import MazeTaskSampler, MazeTaskManager
 from epann.utils import categorical
 
-maze_env = metagym.metamaze.MetaMaze2D(enable_render=False, view_grid=1, max_steps=200)
-
 def gen_task(cell_scale=11, crowd_ratio=0.35):
-    return maze_env.sample_task(cell_scale=cell_scale, allow_loops=True, crowd_ratio=crowd_ratio, step_reward=-0.01, goal_reward=1.0)._asdict()
+    ret = MazeTaskSampler(n=cell_scale, allow_loops=True, crowd_ratio=crowd_ratio, step_reward=-0.01, goal_reward=1.0)._asdict()
+    return ret
 
 T_Pi = 6.2831852
 lower_b = [0.20 ** i for i in range(50)]
 
 class MazeTask(object):
     def __init__(self, need_guide=False, guide_eps=0.20):  # Can set goal to test adaptation.
-        self._maze_env = metagym.metamaze.MetaMaze2D(enable_render=False, view_grid=1, max_steps=200)
+        self._maze_env = gym.make("meta-maze-2D-v0", enable_render=False, view_grid=1, max_steps=200, task_type="ESCAPE")
         self._need_guide = need_guide
         self._guide_eps = guide_eps
 
@@ -28,7 +27,7 @@ class MazeTask(object):
         self.coverage = dict()
 
     def reset(self, pattern, eps_type):
-        task = TaskConfig._make(pattern.values())
+        task = MazeTaskManager.TaskConfig._make(pattern.values())
         self._maze_env.set_task(task)
         self._score = 0.0
         obs = self._maze_env.reset()
@@ -40,7 +39,7 @@ class MazeTask(object):
     def step(self, action):
         obs, r, done, info = self._maze_env.step(action)
         obs = numpy.ravel(obs)
-        i, j = self._maze_env.maze_core._agent_pos
+        i, j = self._maze_env.maze_core._agent_loc
         self.coverage[(i,j)] = 0
         goal = False
         if(r > 0 and done):
@@ -79,7 +78,7 @@ class MazeTask(object):
         return True
 
     def guide_policy(self, eps):
-        i, j = self._maze_env.maze_core._agent_pos
+        i, j = self._maze_env.maze_core._agent_loc
         cell_walls = self._maze_env.maze_core._cell_walls[i-1:i+2, j-1:j+2]
         avail_direction = list()
         avail_id = dict()
@@ -228,9 +227,11 @@ def obs_to_input_2(obs, action, info):
 if __name__=="__main__":
     # running random policies
     game = MazeTask()
-    tasks = gen_pattern()
+    tasks = gen_task()
     done = False
     game.reset(tasks, "TRAIN")
+    game.task_reset()
+    game.planning()
     print(game.optimal_steps())
     step = 0
     while not done:

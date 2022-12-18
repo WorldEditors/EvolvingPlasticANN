@@ -6,7 +6,6 @@ import math
 import random
 import numpy
 from envs.env_maze import  MazeTask
-from envs.env_maze import gen_task as gen_single
 from envs.env_maze import output_to_action
 from envs.env_maze import obs_to_input
 from epann.utils import categorical
@@ -41,7 +40,7 @@ model = ModelPRNNAfterMod(input_shape=(15,), output_shape=(5,), hidden_size=64, 
 server = "localhost:8010"
 
 #True Batch size = Actor_number * batch_size
-actor_number = 380
+actor_number = 20
 batch_size = 1
 task_sub_iterations = 4
 inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (0.16, "TEST", True),
@@ -54,8 +53,8 @@ inner_rollouts = [(0.0, "TRAIN", True), (0.0, "TRAIN", True), (0.16, "TEST", Tru
 adapt_type = "forward"
 ent_factor = 1.0e-6
 
-evolution_pool_size = 360
-evolution_topk_size = 180
+evolution_pool_size = 80
+evolution_topk_size = 40
 # CMA-ES initial noise variance
 evolution_step_size = 0.01
 # CMA-ES hyper-parameter
@@ -75,7 +74,7 @@ def train_patterns(n_step=0):
 
 #Sampled Tasks for meta-testing
 def valid_patterns(pattern_number=1024):
-    return gen_patterns(n=1024, file_name="./demo/tasks/1024_maze15.dat")
+    return import_mazes(n=40, file_name="./demo/tasks/1024_maze15.dat")
 
 def game():
     return MazeTask()
