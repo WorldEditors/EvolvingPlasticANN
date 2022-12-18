@@ -1,5 +1,8 @@
 # Introduction
-A crucial difference between artificial neural networks (ANNs) and biological neural networks (BNNs) is that BNNs can acquire new skills across variant tasks on their own. Motivated by BNNs, we try to implement the "Learning By Interaction" principle in the meta-learning framework. We aim to unify supervised learning, reinforcement learning, and unsupervised learning in a model-based / plasticity-based manner. The learning no longer relies on human-designed target function and optimization but through the black-box mechanism of the neural networks and plasticity rules. We build this evolving plasticity repo to facilitate the research on this topic.
+Inspired by biological neural networks (BNNs) is that BNNs that acquire new skills across variant tasks on their own, we try to implement "Model-Based Meta learning" or "In-Context Learning" in the nested learning loops. 
+The learning no longer relies on human-designed target function and optimization but through the black-box mechanism of the neural networks and plasticity rules. 
+Our investigation show that Lifelong In-Context Learning is possible through modeling Hebbian plasticity.
+We build this evolving plasticity repo to facilitate the research on this topic.
 
 # Requirement
 python >= 3.7.4
@@ -26,3 +29,16 @@ xparl start --cpu_num $cpu_num --port $port_id
 ```
 and change the "server" configuration to "$IP_ADDRESS:$port_id".
 Also be sure that "$cpu_num" surpass the "actor_number" in the configuration file
+
+Cite this work by with
+```
+@article{
+wang2022evolving,
+title={Evolving Decomposed Plasticity Rules for Information-Bottlenecked Meta-Learning},
+author={Fan Wang and Hao Tian and Haoyi Xiong and Hua Wu and Jie Fu and Yang Cao and Kang Yu and Haifeng Wang},
+journal={Transactions of Machine Learning Research},
+year={2022},
+url={https://openreview.net/forum?id=6qMKztPn0n},
+note={}
+}
+```
