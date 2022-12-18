@@ -11,7 +11,7 @@ parl == 1.4.1
 
 numpy >= 1.8.1
 
-metagym >= 0.1.0
+metagym >= 0.2.0.dev2
 
 # Run Meta-Training in Random Maze-2D environments
 ```bash
@@ -30,7 +30,7 @@ xparl start --cpu_num $cpu_num --port $port_id
 and change the "server" configuration to "$IP_ADDRESS:$port_id".
 Also be sure that "$cpu_num" surpass the "actor_number" in the configuration file
 
-Cite this work by with
+Cite this work with
 ```
 @article{
 wang2022evolving,
